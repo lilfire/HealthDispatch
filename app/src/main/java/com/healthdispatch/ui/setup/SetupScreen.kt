@@ -11,6 +11,7 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -22,7 +23,7 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 
 @Composable
-fun SetupScreen(onSetupComplete: () -> Unit) {
+fun SetupScreen(onSetupComplete: () -> Unit, onSkip: () -> Unit) {
     var supabaseUrl by remember { mutableStateOf("") }
     var supabaseKey by remember { mutableStateOf("") }
 
@@ -80,5 +81,19 @@ fun SetupScreen(onSetupComplete: () -> Unit) {
         ) {
             Text("Connect & Start Syncing")
         }
+
+        Spacer(modifier = Modifier.height(12.dp))
+
+        TextButton(onClick = onSkip) {
+            Text("Skip for now")
+        }
+
+        Spacer(modifier = Modifier.height(4.dp))
+
+        Text(
+            text = "You can set this up later in Settings",
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
     }
 }
