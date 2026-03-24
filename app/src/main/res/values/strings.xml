@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">HealthDispatch</string>
+    <string name="sync_notification_channel">Sync Service</string>
+    <string name="sync_notification_title">HealthDispatch Sync</string>
+    <string name="sync_notification_text">Syncing health data in the background</string>
+</resources>
