@@ -12,19 +12,21 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
+import androidx.hilt.navigation.compose.hiltViewModel
 
 @Composable
-fun SetupScreen(onSetupComplete: () -> Unit) {
-    var supabaseUrl by remember { mutableStateOf("") }
-    var supabaseKey by remember { mutableStateOf("") }
+fun SetupScreen(
+    onSetupComplete: () -> Unit,
+    viewModel: SetupViewModel = hiltViewModel()
+) {
+    val supabaseUrl by viewModel.url.collectAsState()
+    val supabaseKey by viewModel.apiKey.collectAsState()
 
     Column(
         modifier = Modifier
@@ -50,7 +52,7 @@ fun SetupScreen(onSetupComplete: () -> Unit) {
 
         OutlinedTextField(
             value = supabaseUrl,
-            onValueChange = { supabaseUrl = it },
+            onValueChange = viewModel::onUrlChange,
             label = { Text("Supabase URL") },
             placeholder = { Text("https://your-project.supabase.co") },
             modifier = Modifier.fillMaxWidth(),
@@ -61,7 +63,7 @@ fun SetupScreen(onSetupComplete: () -> Unit) {
 
         OutlinedTextField(
             value = supabaseKey,
-            onValueChange = { supabaseKey = it },
+            onValueChange = viewModel::onApiKeyChange,
             label = { Text("Supabase API Key") },
             modifier = Modifier.fillMaxWidth(),
             singleLine = true,
@@ -71,10 +73,7 @@ fun SetupScreen(onSetupComplete: () -> Unit) {
         Spacer(modifier = Modifier.height(32.dp))
 
         Button(
-            onClick = {
-                // TODO: Save to DataStore, request HC permissions, start sync
-                onSetupComplete()
-            },
+            onClick = { viewModel.saveConfig(onSetupComplete) },
             enabled = supabaseUrl.isNotBlank() && supabaseKey.isNotBlank(),
             modifier = Modifier.fillMaxWidth()
         ) {

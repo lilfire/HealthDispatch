@@ -1,10 +1,15 @@
 package com.healthdispatch.ui.settings
 
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -13,11 +18,22 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.dp
+import androidx.hilt.navigation.compose.hiltViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun SettingsScreen(onBack: () -> Unit) {
+fun SettingsScreen(
+    onBack: () -> Unit,
+    onEditSupabaseConfig: () -> Unit,
+    onRerunSetup: () -> Unit,
+    viewModel: SettingsViewModel = hiltViewModel()
+) {
+    val supabaseUrl by viewModel.supabaseUrl.collectAsState(initial = "")
+
     Scaffold(
         topBar = {
             TopAppBar(
@@ -37,7 +53,14 @@ fun SettingsScreen(onBack: () -> Unit) {
         ) {
             ListItem(
                 headlineContent = { Text("Supabase URL") },
-                supportingContent = { Text("Not configured") } // TODO: read from DataStore
+                supportingContent = {
+                    Text(supabaseUrl.ifBlank { "Not configured" })
+                },
+                trailingContent = {
+                    IconButton(onClick = onEditSupabaseConfig) {
+                        Icon(Icons.Default.Edit, contentDescription = "Edit Supabase URL")
+                    }
+                }
             )
             ListItem(
                 headlineContent = { Text("Sync Interval") },
@@ -47,6 +70,17 @@ fun SettingsScreen(onBack: () -> Unit) {
                 headlineContent = { Text("Data Types") },
                 supportingContent = { Text("Steps, Heart Rate, Sleep, Exercise, Weight") }
             )
+
+            Spacer(modifier = Modifier.height(24.dp))
+
+            Button(
+                onClick = onRerunSetup,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp)
+            ) {
+                Text("Re-run Setup Wizard")
+            }
         }
     }
 }
