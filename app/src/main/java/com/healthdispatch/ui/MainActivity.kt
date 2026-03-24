@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.ui.Modifier
+import com.healthdispatch.data.cloud.CloudConfigRepository
 import com.healthdispatch.data.healthconnect.HealthConnectRepository
 import com.healthdispatch.ui.navigation.HealthDispatchNavHost
 import com.healthdispatch.ui.theme.HealthDispatchTheme
@@ -20,6 +21,9 @@ class MainActivity : ComponentActivity() {
     @Inject
     lateinit var healthConnectRepository: HealthConnectRepository
 
+    @Inject
+    lateinit var cloudConfigRepository: CloudConfigRepository
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
@@ -30,7 +34,8 @@ class MainActivity : ComponentActivity() {
                     color = MaterialTheme.colorScheme.background
                 ) {
                     HealthDispatchNavHost(
-                        healthConnectRepository = healthConnectRepository
+                        healthConnectRepository = healthConnectRepository,
+                        cloudConfigRepository = cloudConfigRepository
                     )
                 }
             }
