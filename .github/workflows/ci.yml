@@ -34,7 +34,7 @@ jobs:
           gradle-version: "wrapper"
 
       - name: Run unit tests
-        run: gradle test
+        run: gradle testDebugUnitTest
 
   build:
     name: Build APK
