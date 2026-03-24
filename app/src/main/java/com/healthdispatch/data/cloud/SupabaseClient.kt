@@ -14,10 +14,14 @@ import javax.inject.Singleton
 @Singleton
 class SupabaseClient @Inject constructor(
     private val httpClient: HttpClient,
-    private val config: CloudConfig
+    private val cloudConfigRepository: CloudConfigRepository
 ) {
     suspend fun pushRecords(tableName: String, jsonPayloads: List<String>): Result<Int> {
         return try {
+            val config = cloudConfigRepository.currentConfig()
+            if (config.url.isBlank() || config.apiKey.isBlank()) {
+                return Result.failure(Exception("Cloud config not set"))
+            }
             val body = "[${jsonPayloads.joinToString(",")}]"
             val response = httpClient.post("${config.url}/rest/v1/$tableName") {
                 contentType(ContentType.Application.Json)

@@ -5,8 +5,6 @@ import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.preferencesDataStore
 import androidx.room.Room
-import com.healthdispatch.data.cloud.CloudConfig
-import com.healthdispatch.data.cloud.SupabaseClient
 import com.healthdispatch.data.local.PendingSyncDao
 import com.healthdispatch.data.local.SyncDatabase
 import com.healthdispatch.data.local.SyncTokenDao
@@ -55,16 +53,6 @@ object AppModule {
                 })
             }
         }
-    }
-
-    @Provides
-    @Singleton
-    fun provideCloudConfig(): CloudConfig {
-        // TODO: Read from DataStore preferences (setup wizard writes these)
-        return CloudConfig(
-            url = "",
-            apiKey = ""
-        )
     }
 
     @Provides

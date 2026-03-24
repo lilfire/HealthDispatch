@@ -13,11 +13,18 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
+import androidx.hilt.navigation.compose.hiltViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun SettingsScreen(onBack: () -> Unit) {
+fun SettingsScreen(
+    onBack: () -> Unit,
+    viewModel: SettingsViewModel = hiltViewModel()
+) {
+    val supabaseUrl by viewModel.supabaseUrl.collectAsState(initial = "Loading...")
     Scaffold(
         topBar = {
             TopAppBar(
@@ -37,7 +44,7 @@ fun SettingsScreen(onBack: () -> Unit) {
         ) {
             ListItem(
                 headlineContent = { Text("Supabase URL") },
-                supportingContent = { Text("Not configured") } // TODO: read from DataStore
+                supportingContent = { Text(supabaseUrl) }
             )
             ListItem(
                 headlineContent = { Text("Sync Interval") },

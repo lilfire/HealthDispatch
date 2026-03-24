@@ -19,12 +19,20 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import androidx.hilt.navigation.compose.hiltViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun DashboardScreen(onNavigateToSettings: () -> Unit) {
+fun DashboardScreen(
+    onNavigateToSettings: () -> Unit,
+    viewModel: DashboardViewModel = hiltViewModel()
+) {
+    val syncStatus by viewModel.syncStatus.collectAsState(initial = "Loading...")
+    val pendingCount by viewModel.pendingCount.collectAsState(initial = "0")
     Scaffold(
         topBar = {
             TopAppBar(
@@ -46,15 +54,11 @@ fun DashboardScreen(onNavigateToSettings: () -> Unit) {
         ) {
             SyncStatusCard(
                 title = "Sync Status",
-                value = "Active"
+                value = syncStatus
             )
             SyncStatusCard(
                 title = "Pending Records",
-                value = "0" // TODO: observe from Room
-            )
-            SyncStatusCard(
-                title = "Last Synced",
-                value = "Never" // TODO: observe from DataStore
+                value = pendingCount
             )
         }
     }

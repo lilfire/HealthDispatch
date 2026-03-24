@@ -20,9 +20,13 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
+import androidx.hilt.navigation.compose.hiltViewModel
 
 @Composable
-fun SetupScreen(onSetupComplete: () -> Unit) {
+fun SetupScreen(
+    onSetupComplete: () -> Unit,
+    viewModel: SetupViewModel = hiltViewModel()
+) {
     var supabaseUrl by remember { mutableStateOf("") }
     var supabaseKey by remember { mutableStateOf("") }
 
@@ -72,8 +76,9 @@ fun SetupScreen(onSetupComplete: () -> Unit) {
 
         Button(
             onClick = {
-                // TODO: Save to DataStore, request HC permissions, start sync
-                onSetupComplete()
+                viewModel.saveConfig(supabaseUrl, supabaseKey) {
+                    onSetupComplete()
+                }
             },
             enabled = supabaseUrl.isNotBlank() && supabaseKey.isNotBlank(),
             modifier = Modifier.fillMaxWidth()

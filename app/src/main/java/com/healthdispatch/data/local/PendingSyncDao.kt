@@ -4,6 +4,7 @@ import androidx.room.Dao
 import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
+import kotlinx.coroutines.flow.Flow
 
 @Dao
 interface PendingSyncDao {
@@ -25,6 +26,9 @@ interface PendingSyncDao {
 
     @Query("SELECT COUNT(*) FROM pending_sync_records WHERE status = 'PENDING' OR status = 'FAILED'")
     suspend fun getPendingCount(): Int
+
+    @Query("SELECT COUNT(*) FROM pending_sync_records WHERE status = 'PENDING' OR status = 'FAILED'")
+    fun observePendingCount(): Flow<Int>
 
     @Query("SELECT COUNT(*) FROM pending_sync_records WHERE status = 'SYNCED'")
     suspend fun getSyncedCount(): Int
