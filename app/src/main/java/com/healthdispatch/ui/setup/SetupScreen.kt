@@ -12,7 +12,10 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
@@ -22,6 +25,7 @@ import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -46,69 +50,73 @@ fun SetupScreen(
         if (state.isComplete) onSetupComplete()
     }
 
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(24.dp),
-    ) {
-        LinearProgressIndicator(
-            progress = { (state.currentStep + 1).toFloat() / viewModel.totalSteps },
-            modifier = Modifier.fillMaxWidth(),
-        )
+    Scaffold { innerPadding ->
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(innerPadding)
+                .imePadding()
+                .padding(24.dp),
+        ) {
+            LinearProgressIndicator(
+                progress = { (state.currentStep + 1).toFloat() / viewModel.totalSteps },
+                modifier = Modifier.fillMaxWidth(),
+            )
 
-        Spacer(modifier = Modifier.height(8.dp))
+            Spacer(modifier = Modifier.height(8.dp))
 
-        Text(
-            text = "Step ${state.currentStep + 1} of ${viewModel.totalSteps}",
-            style = MaterialTheme.typography.labelMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
+            Text(
+                text = "Step ${state.currentStep + 1} of ${viewModel.totalSteps}",
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
 
-        Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(16.dp))
 
-        AnimatedContent(
-            targetState = state.currentStep,
-            transitionSpec = {
-                if (targetState > initialState) {
-                    slideInHorizontally { it } togetherWith slideOutHorizontally { -it }
-                } else {
-                    slideInHorizontally { -it } togetherWith slideOutHorizontally { it }
+            AnimatedContent(
+                targetState = state.currentStep,
+                transitionSpec = {
+                    if (targetState > initialState) {
+                        slideInHorizontally { it } togetherWith slideOutHorizontally { -it }
+                    } else {
+                        slideInHorizontally { -it } togetherWith slideOutHorizontally { it }
+                    }
+                },
+                modifier = Modifier.weight(1f),
+                label = "wizard_step",
+            ) { step ->
+                when (step) {
+                    0 -> WelcomeStep()
+                    1 -> CloudConfigStep(
+                        supabaseUrl = state.supabaseUrl,
+                        supabaseKey = state.supabaseKey,
+                        onUrlChange = viewModel::updateSupabaseUrl,
+                        onKeyChange = viewModel::updateSupabaseKey,
+                    )
+                    2 -> PermissionsStep(
+                        permissionsGranted = state.permissionsGranted,
+                        healthConnectAvailable = state.healthConnectAvailable,
+                        onPermissionsResult = { viewModel.refreshPermissions() },
+                    )
+                    3 -> ConfirmationStep(
+                        supabaseUrl = state.supabaseUrl,
+                        permissionsGranted = state.permissionsGranted,
+                    )
                 }
-            },
-            modifier = Modifier.weight(1f),
-            label = "wizard_step",
-        ) { step ->
-            when (step) {
-                0 -> WelcomeStep()
-                1 -> CloudConfigStep(
-                    supabaseUrl = state.supabaseUrl,
-                    supabaseKey = state.supabaseKey,
-                    onUrlChange = viewModel::updateSupabaseUrl,
-                    onKeyChange = viewModel::updateSupabaseKey,
-                )
-                2 -> PermissionsStep(
-                    permissionsGranted = state.permissionsGranted,
-                    healthConnectAvailable = state.healthConnectAvailable,
-                    onPermissionsResult = { viewModel.refreshPermissions() },
-                )
-                3 -> ConfirmationStep(
-                    supabaseUrl = state.supabaseUrl,
-                    permissionsGranted = state.permissionsGranted,
-                )
             }
-        }
 
-        WizardNavButtons(
-            currentStep = state.currentStep,
-            totalSteps = viewModel.totalSteps,
-            canAdvance = when (state.currentStep) {
-                1 -> state.supabaseUrl.isNotBlank() && state.supabaseKey.isNotBlank()
-                else -> true
-            },
-            onBack = viewModel::previousStep,
-            onNext = viewModel::nextStep,
-            onFinish = viewModel::completeSetup,
-        )
+            WizardNavButtons(
+                currentStep = state.currentStep,
+                totalSteps = viewModel.totalSteps,
+                canAdvance = when (state.currentStep) {
+                    1 -> state.supabaseUrl.isNotBlank() && state.supabaseKey.isNotBlank()
+                    else -> true
+                },
+                onBack = viewModel::previousStep,
+                onNext = viewModel::nextStep,
+                onFinish = viewModel::completeSetup,
+            )
+        }
     }
 }
 
@@ -152,7 +160,9 @@ private fun CloudConfigStep(
     onKeyChange: (String) -> Unit,
 ) {
     Column(
-        modifier = Modifier.fillMaxSize(),
+        modifier = Modifier
+            .fillMaxSize()
+            .verticalScroll(rememberScrollState()),
         verticalArrangement = Arrangement.Center,
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
