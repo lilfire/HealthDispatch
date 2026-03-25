@@ -75,7 +75,12 @@ private fun HealthDispatchNavContent(
         }
         composable(Routes.SETTINGS) {
             SettingsScreen(
-                onBack = { navController.popBackStack() }
+                onBack = { navController.popBackStack() },
+                onRerunSetup = {
+                    navController.navigate(Routes.SETUP) {
+                        popUpTo(0) { inclusive = true }
+                    }
+                }
             )
         }
     }

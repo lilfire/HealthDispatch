@@ -15,6 +15,12 @@ import javax.inject.Singleton
 class CloudConfigRepository @Inject constructor(
     private val dataStore: DataStore<Preferences>
 ) {
+    private companion object {
+        val KEY_SUPABASE_URL = stringPreferencesKey("supabase_url")
+        val KEY_SUPABASE_API_KEY = stringPreferencesKey("supabase_api_key")
+        val KEY_ONBOARDING_COMPLETE = booleanPreferencesKey("onboarding_complete")
+    }
+
     val cloudConfigFlow: Flow<CloudConfig> = dataStore.data.map { prefs ->
         CloudConfig(
             url = prefs[KEY_SUPABASE_URL] ?: "",
@@ -34,13 +40,17 @@ class CloudConfigRepository @Inject constructor(
         }
     }
 
-    suspend fun currentConfig(): CloudConfig {
-        return cloudConfigFlow.first()
+    suspend fun resetOnboarding() {
+        dataStore.edit { prefs ->
+            prefs[KEY_ONBOARDING_COMPLETE] = false
+        }
     }
 
-    companion object {
-        private val KEY_SUPABASE_URL = stringPreferencesKey("supabase_url")
-        private val KEY_SUPABASE_API_KEY = stringPreferencesKey("supabase_api_key")
-        private val KEY_ONBOARDING_COMPLETE = booleanPreferencesKey("onboarding_complete")
+    suspend fun currentConfig(): CloudConfig {
+        val prefs = dataStore.data.first()
+        return CloudConfig(
+            url = prefs[KEY_SUPABASE_URL] ?: "",
+            apiKey = prefs[KEY_SUPABASE_API_KEY] ?: ""
+        )
     }
 }
