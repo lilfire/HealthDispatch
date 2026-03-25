@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <!-- Medical cross -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M47,29 L61,29 Q63,29 63,31 L63,77 Q63,79 61,79 L47,79 Q45,79 45,77 L45,31 Q45,29 47,29 Z" />
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M29,47 L79,47 Q81,47 81,49 L81,59 Q81,61 79,61 L29,61 Q27,61 27,59 L27,49 Q27,47 29,47 Z" />
+    <!-- Signal waves (dispatch indicator) -->
+    <path
+        android:pathData="M72,44 Q82,54 72,64"
+        android:strokeWidth="2.2"
+        android:strokeColor="#A5D6A7"
+        android:fillColor="#00000000" />
+    <path
+        android:pathData="M77,39 Q90,54 77,69"
+        android:strokeWidth="1.8"
+        android:strokeColor="#81C784"
+        android:fillColor="#00000000" />
+    <path
+        android:pathData="M82,35 Q97,54 82,73"
+        android:strokeWidth="1.4"
+        android:strokeColor="#66BB6A"
+        android:fillColor="#00000000" />
+</vector>
