@@ -27,6 +27,7 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -42,6 +43,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 @Composable
 fun SetupScreen(
     onSetupComplete: () -> Unit,
+    onSkip: () -> Unit = {},
     viewModel: SetupViewModel = hiltViewModel(),
 ) {
     val state by viewModel.uiState.collectAsState()
@@ -115,6 +117,20 @@ fun SetupScreen(
                 onBack = viewModel::previousStep,
                 onNext = viewModel::nextStep,
                 onFinish = viewModel::completeSetup,
+            )
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            TextButton(onClick = onSkip) {
+                Text("Skip for now")
+            }
+
+            Spacer(modifier = Modifier.height(4.dp))
+
+            Text(
+                text = "You can set this up later in Settings",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
             )
         }
     }
