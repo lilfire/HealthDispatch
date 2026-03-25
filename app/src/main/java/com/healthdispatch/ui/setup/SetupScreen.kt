@@ -1,5 +1,6 @@
 package com.healthdispatch.ui.setup
 
+import android.webkit.URLUtil
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.slideInHorizontally
@@ -32,6 +33,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.PasswordVisualTransformation
@@ -39,6 +43,21 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.health.connect.client.PermissionController
 import androidx.hilt.navigation.compose.hiltViewModel
+
+private const val MIN_API_KEY_LENGTH = 20
+
+internal fun validateSupabaseUrl(url: String): String? {
+    if (url.isBlank()) return null
+    if (!URLUtil.isHttpsUrl(url)) return "URL must start with https://"
+    if (!url.contains(".supabase.co")) return "URL should contain .supabase.co"
+    return null
+}
+
+internal fun validateApiKey(key: String): String? {
+    if (key.isBlank()) return null
+    if (key.length < MIN_API_KEY_LENGTH) return "API key must be at least $MIN_API_KEY_LENGTH characters"
+    return null
+}
 
 @Composable
 fun SetupScreen(
@@ -111,7 +130,10 @@ fun SetupScreen(
                 currentStep = state.currentStep,
                 totalSteps = viewModel.totalSteps,
                 canAdvance = when (state.currentStep) {
-                    1 -> state.supabaseUrl.isNotBlank() && state.supabaseKey.isNotBlank()
+                    1 -> state.supabaseUrl.isNotBlank() &&
+                            validateSupabaseUrl(state.supabaseUrl) == null &&
+                            state.supabaseKey.isNotBlank() &&
+                            validateApiKey(state.supabaseKey) == null
                     else -> true
                 },
                 onBack = viewModel::previousStep,
@@ -175,6 +197,12 @@ private fun CloudConfigStep(
     onUrlChange: (String) -> Unit,
     onKeyChange: (String) -> Unit,
 ) {
+    var urlTouched by remember { mutableStateOf(false) }
+    var keyTouched by remember { mutableStateOf(false) }
+
+    val urlError = if (urlTouched) validateSupabaseUrl(supabaseUrl) else null
+    val keyError = if (keyTouched) validateApiKey(supabaseKey) else null
+
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -200,22 +228,32 @@ private fun CloudConfigStep(
 
         OutlinedTextField(
             value = supabaseUrl,
-            onValueChange = onUrlChange,
+            onValueChange = {
+                onUrlChange(it)
+                urlTouched = true
+            },
             label = { Text("Supabase URL") },
             placeholder = { Text("https://your-project.supabase.co") },
             modifier = Modifier.fillMaxWidth(),
             singleLine = true,
+            isError = urlError != null,
+            supportingText = urlError?.let { error -> { Text(error) } }
         )
 
         Spacer(modifier = Modifier.height(16.dp))
 
         OutlinedTextField(
             value = supabaseKey,
-            onValueChange = onKeyChange,
+            onValueChange = {
+                onKeyChange(it)
+                keyTouched = true
+            },
             label = { Text("Supabase API Key") },
             modifier = Modifier.fillMaxWidth(),
             singleLine = true,
             visualTransformation = PasswordVisualTransformation(),
+            isError = keyError != null,
+            supportingText = keyError?.let { error -> { Text(error) } }
         )
     }
 }
