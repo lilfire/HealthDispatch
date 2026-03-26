@@ -5,8 +5,9 @@ import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.preferencesDataStore
 import androidx.room.Room
+import com.healthdispatch.data.auth.AuthRepository
+import com.healthdispatch.data.auth.SupabaseAuthRepository
 import com.healthdispatch.data.cloud.CloudConfig
-import com.healthdispatch.data.cloud.SupabaseClient
 import com.healthdispatch.data.local.PendingSyncDao
 import com.healthdispatch.data.local.SyncDatabase
 import com.healthdispatch.data.local.SyncTokenDao
@@ -46,13 +47,19 @@ object AppModule {
 
     @Provides
     @Singleton
-    fun provideHttpClient(): HttpClient {
+    fun provideJson(): Json {
+        return Json {
+            ignoreUnknownKeys = true
+            isLenient = true
+        }
+    }
+
+    @Provides
+    @Singleton
+    fun provideHttpClient(json: Json): HttpClient {
         return HttpClient(OkHttp) {
             install(ContentNegotiation) {
-                json(Json {
-                    ignoreUnknownKeys = true
-                    isLenient = true
-                })
+                json(json)
             }
         }
     }
@@ -71,5 +78,15 @@ object AppModule {
     @Singleton
     fun provideDataStore(@ApplicationContext context: Context): DataStore<Preferences> {
         return context.dataStore
+    }
+
+    @Provides
+    @Singleton
+    fun provideAuthRepository(
+        httpClient: HttpClient,
+        dataStore: DataStore<Preferences>,
+        json: Json
+    ): AuthRepository {
+        return SupabaseAuthRepository(httpClient, dataStore, json)
     }
 }

@@ -1,34 +1,97 @@
 package com.healthdispatch.ui.setup
 
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Email
+import androidx.compose.material.icons.filled.Lock
+import androidx.compose.material.icons.filled.Visibility
+import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.Button
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusDirection
+import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
+import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 
 @Composable
-fun SetupScreen(onSetupComplete: () -> Unit) {
-    var supabaseUrl by remember { mutableStateOf("") }
-    var supabaseKey by remember { mutableStateOf("") }
+fun SetupScreen(
+    onSetupComplete: () -> Unit,
+    onRequestGoogleSignIn: (() -> Unit)? = null,
+    viewModel: SetupViewModel = hiltViewModel()
+) {
+    val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+
+    LaunchedEffect(Unit) {
+        viewModel.authSuccessEvent.collect {
+            onSetupComplete()
+        }
+    }
+
+    SetupScreenContent(
+        uiState = uiState,
+        onEmailChange = viewModel::updateEmail,
+        onPasswordChange = viewModel::updatePassword,
+        onConfirmPasswordChange = viewModel::updateConfirmPassword,
+        onToggleMode = viewModel::toggleMode,
+        onSubmit = viewModel::submit,
+        onGoogleSignIn = onRequestGoogleSignIn,
+        onClearError = viewModel::clearError
+    )
+}
+
+@Composable
+fun SetupScreenContent(
+    uiState: SetupUiState,
+    onEmailChange: (String) -> Unit,
+    onPasswordChange: (String) -> Unit,
+    onConfirmPasswordChange: (String) -> Unit,
+    onToggleMode: () -> Unit,
+    onSubmit: () -> Unit,
+    onGoogleSignIn: (() -> Unit)?,
+    onClearError: () -> Unit
+) {
+    val focusManager = LocalFocusManager.current
+    var passwordVisible by remember { mutableStateOf(false) }
+    var confirmPasswordVisible by remember { mutableStateOf(false) }
 
     Column(
         modifier = Modifier
             .fillMaxSize()
+            .verticalScroll(rememberScrollState())
             .padding(24.dp),
         verticalArrangement = Arrangement.Center,
         horizontalAlignment = Alignment.CenterHorizontally
@@ -41,44 +104,179 @@ fun SetupScreen(onSetupComplete: () -> Unit) {
         Spacer(modifier = Modifier.height(8.dp))
 
         Text(
-            text = "Configure your cloud endpoint",
+            text = if (uiState.isSignUpMode) "Create your account" else "Sign in to your account",
             style = MaterialTheme.typography.bodyLarge,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
 
         Spacer(modifier = Modifier.height(32.dp))
 
+        // Email field
         OutlinedTextField(
-            value = supabaseUrl,
-            onValueChange = { supabaseUrl = it },
-            label = { Text("Supabase URL") },
-            placeholder = { Text("https://your-project.supabase.co") },
+            value = uiState.email,
+            onValueChange = {
+                onEmailChange(it)
+                onClearError()
+            },
+            label = { Text("Email") },
+            placeholder = { Text("you@example.com") },
+            leadingIcon = { Icon(Icons.Default.Email, contentDescription = null) },
             modifier = Modifier.fillMaxWidth(),
-            singleLine = true
+            singleLine = true,
+            enabled = !uiState.isLoading,
+            keyboardOptions = KeyboardOptions(
+                keyboardType = KeyboardType.Email,
+                imeAction = ImeAction.Next
+            ),
+            keyboardActions = KeyboardActions(
+                onNext = { focusManager.moveFocus(FocusDirection.Down) }
+            ),
+            isError = uiState.errorMessage?.contains("email", ignoreCase = true) == true
         )
 
         Spacer(modifier = Modifier.height(16.dp))
 
+        // Password field
         OutlinedTextField(
-            value = supabaseKey,
-            onValueChange = { supabaseKey = it },
-            label = { Text("Supabase API Key") },
+            value = uiState.password,
+            onValueChange = {
+                onPasswordChange(it)
+                onClearError()
+            },
+            label = { Text("Password") },
+            leadingIcon = { Icon(Icons.Default.Lock, contentDescription = null) },
+            trailingIcon = {
+                IconButton(onClick = { passwordVisible = !passwordVisible }) {
+                    Icon(
+                        if (passwordVisible) Icons.Default.VisibilityOff else Icons.Default.Visibility,
+                        contentDescription = if (passwordVisible) "Hide password" else "Show password"
+                    )
+                }
+            },
             modifier = Modifier.fillMaxWidth(),
             singleLine = true,
-            visualTransformation = PasswordVisualTransformation()
+            enabled = !uiState.isLoading,
+            visualTransformation = if (passwordVisible) VisualTransformation.None else PasswordVisualTransformation(),
+            keyboardOptions = KeyboardOptions(
+                keyboardType = KeyboardType.Password,
+                imeAction = if (uiState.isSignUpMode) ImeAction.Next else ImeAction.Done
+            ),
+            keyboardActions = KeyboardActions(
+                onNext = { focusManager.moveFocus(FocusDirection.Down) },
+                onDone = { onSubmit() }
+            ),
+            isError = uiState.errorMessage?.contains("password", ignoreCase = true) == true
+                    && !uiState.errorMessage.contains("match", ignoreCase = true)
         )
 
-        Spacer(modifier = Modifier.height(32.dp))
+        // Confirm password field (sign-up only)
+        AnimatedVisibility(visible = uiState.isSignUpMode) {
+            Column {
+                Spacer(modifier = Modifier.height(16.dp))
+                OutlinedTextField(
+                    value = uiState.confirmPassword,
+                    onValueChange = {
+                        onConfirmPasswordChange(it)
+                        onClearError()
+                    },
+                    label = { Text("Confirm Password") },
+                    leadingIcon = { Icon(Icons.Default.Lock, contentDescription = null) },
+                    trailingIcon = {
+                        IconButton(onClick = { confirmPasswordVisible = !confirmPasswordVisible }) {
+                            Icon(
+                                if (confirmPasswordVisible) Icons.Default.VisibilityOff else Icons.Default.Visibility,
+                                contentDescription = if (confirmPasswordVisible) "Hide password" else "Show password"
+                            )
+                        }
+                    },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true,
+                    enabled = !uiState.isLoading,
+                    visualTransformation = if (confirmPasswordVisible) VisualTransformation.None else PasswordVisualTransformation(),
+                    keyboardOptions = KeyboardOptions(
+                        keyboardType = KeyboardType.Password,
+                        imeAction = ImeAction.Done
+                    ),
+                    keyboardActions = KeyboardActions(
+                        onDone = { onSubmit() }
+                    ),
+                    isError = uiState.errorMessage?.contains("match", ignoreCase = true) == true
+                )
+            }
+        }
 
+        // Error message
+        AnimatedVisibility(visible = uiState.errorMessage != null) {
+            Column {
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(
+                    text = uiState.errorMessage ?: "",
+                    color = MaterialTheme.colorScheme.error,
+                    style = MaterialTheme.typography.bodySmall
+                )
+            }
+        }
+
+        Spacer(modifier = Modifier.height(24.dp))
+
+        // Submit button
         Button(
-            onClick = {
-                // TODO: Save to DataStore, request HC permissions, start sync
-                onSetupComplete()
-            },
-            enabled = supabaseUrl.isNotBlank() && supabaseKey.isNotBlank(),
+            onClick = onSubmit,
+            enabled = !uiState.isLoading,
             modifier = Modifier.fillMaxWidth()
         ) {
-            Text("Connect & Start Syncing")
+            if (uiState.isLoading) {
+                CircularProgressIndicator(
+                    modifier = Modifier.size(20.dp),
+                    strokeWidth = 2.dp,
+                    color = MaterialTheme.colorScheme.onPrimary
+                )
+            } else {
+                Text(if (uiState.isSignUpMode) "Create Account" else "Sign In")
+            }
+        }
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        // Divider with "or"
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            HorizontalDivider(modifier = Modifier.weight(1f))
+            Text(
+                text = "  or  ",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            HorizontalDivider(modifier = Modifier.weight(1f))
+        }
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        // Google Sign-In button
+        OutlinedButton(
+            onClick = { onGoogleSignIn?.invoke() },
+            enabled = !uiState.isLoading && onGoogleSignIn != null,
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Text("Sign in with Google")
+        }
+
+        Spacer(modifier = Modifier.height(24.dp))
+
+        // Toggle mode link
+        TextButton(
+            onClick = onToggleMode,
+            enabled = !uiState.isLoading
+        ) {
+            Text(
+                if (uiState.isSignUpMode) {
+                    "Already have an account? Sign in"
+                } else {
+                    "Don't have an account? Sign up"
+                }
+            )
         }
     }
 }
