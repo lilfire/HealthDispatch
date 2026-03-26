@@ -23,8 +23,8 @@ import androidx.compose.ui.unit.dp
 
 @Composable
 fun SetupScreen(onSetupComplete: () -> Unit) {
-    var supabaseUrl by remember { mutableStateOf("") }
-    var supabaseKey by remember { mutableStateOf("") }
+    var email by remember { mutableStateOf("") }
+    var password by remember { mutableStateOf("") }
 
     Column(
         modifier = Modifier
@@ -41,7 +41,7 @@ fun SetupScreen(onSetupComplete: () -> Unit) {
         Spacer(modifier = Modifier.height(8.dp))
 
         Text(
-            text = "Configure your cloud endpoint",
+            text = "Sign in to start syncing your health data",
             style = MaterialTheme.typography.bodyLarge,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
@@ -49,10 +49,10 @@ fun SetupScreen(onSetupComplete: () -> Unit) {
         Spacer(modifier = Modifier.height(32.dp))
 
         OutlinedTextField(
-            value = supabaseUrl,
-            onValueChange = { supabaseUrl = it },
-            label = { Text("Supabase URL") },
-            placeholder = { Text("https://your-project.supabase.co") },
+            value = email,
+            onValueChange = { email = it },
+            label = { Text("Email") },
+            placeholder = { Text("you@example.com") },
             modifier = Modifier.fillMaxWidth(),
             singleLine = true
         )
@@ -60,9 +60,9 @@ fun SetupScreen(onSetupComplete: () -> Unit) {
         Spacer(modifier = Modifier.height(16.dp))
 
         OutlinedTextField(
-            value = supabaseKey,
-            onValueChange = { supabaseKey = it },
-            label = { Text("Supabase API Key") },
+            value = password,
+            onValueChange = { password = it },
+            label = { Text("Password") },
             modifier = Modifier.fillMaxWidth(),
             singleLine = true,
             visualTransformation = PasswordVisualTransformation()
@@ -72,13 +72,13 @@ fun SetupScreen(onSetupComplete: () -> Unit) {
 
         Button(
             onClick = {
-                // TODO: Save to DataStore, request HC permissions, start sync
+                // TODO: Call supabase.auth.signInWith(Email) { ... }
                 onSetupComplete()
             },
-            enabled = supabaseUrl.isNotBlank() && supabaseKey.isNotBlank(),
+            enabled = email.isNotBlank() && password.isNotBlank(),
             modifier = Modifier.fillMaxWidth()
         ) {
-            Text("Connect & Start Syncing")
+            Text("Sign In & Start Syncing")
         }
     }
 }

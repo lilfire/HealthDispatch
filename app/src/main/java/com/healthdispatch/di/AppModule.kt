@@ -5,21 +5,24 @@ import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.preferencesDataStore
 import androidx.room.Room
-import com.healthdispatch.data.cloud.CloudConfig
-import com.healthdispatch.data.cloud.SupabaseClient
+import com.healthdispatch.BuildConfig
+import com.healthdispatch.data.cloud.AuthSessionProvider
+import com.healthdispatch.data.cloud.PostgrestClientWrapper
+import com.healthdispatch.data.cloud.SupabaseAuthSessionProvider
+import com.healthdispatch.data.cloud.SupabasePostgrestClientWrapper
 import com.healthdispatch.data.local.PendingSyncDao
 import com.healthdispatch.data.local.SyncDatabase
 import com.healthdispatch.data.local.SyncTokenDao
+import dagger.Binds
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
 import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.components.SingletonComponent
-import io.ktor.client.HttpClient
-import io.ktor.client.engine.okhttp.OkHttp
-import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
-import io.ktor.serialization.kotlinx.json.json
-import kotlinx.serialization.json.Json
+import io.github.jan.supabase.SupabaseClient
+import io.github.jan.supabase.auth.Auth
+import io.github.jan.supabase.createSupabaseClient
+import io.github.jan.supabase.postgrest.Postgrest
 import javax.inject.Singleton
 
 private val Context.dataStore: DataStore<Preferences> by preferencesDataStore(name = "settings")
@@ -46,25 +49,14 @@ object AppModule {
 
     @Provides
     @Singleton
-    fun provideHttpClient(): HttpClient {
-        return HttpClient(OkHttp) {
-            install(ContentNegotiation) {
-                json(Json {
-                    ignoreUnknownKeys = true
-                    isLenient = true
-                })
-            }
+    fun provideSupabaseClient(): SupabaseClient {
+        return createSupabaseClient(
+            supabaseUrl = BuildConfig.SUPABASE_URL,
+            supabaseKey = BuildConfig.SUPABASE_ANON_KEY
+        ) {
+            install(Auth)
+            install(Postgrest)
         }
-    }
-
-    @Provides
-    @Singleton
-    fun provideCloudConfig(): CloudConfig {
-        // TODO: Read from DataStore preferences (setup wizard writes these)
-        return CloudConfig(
-            url = "",
-            apiKey = ""
-        )
     }
 
     @Provides
@@ -72,4 +64,17 @@ object AppModule {
     fun provideDataStore(@ApplicationContext context: Context): DataStore<Preferences> {
         return context.dataStore
     }
+}
+
+@Module
+@InstallIn(SingletonComponent::class)
+abstract class AppBindingsModule {
+
+    @Binds
+    @Singleton
+    abstract fun bindAuthSessionProvider(impl: SupabaseAuthSessionProvider): AuthSessionProvider
+
+    @Binds
+    @Singleton
+    abstract fun bindPostgrestClientWrapper(impl: SupabasePostgrestClientWrapper): PostgrestClientWrapper
 }

@@ -36,8 +36,8 @@ fun SettingsScreen(onBack: () -> Unit) {
                 .padding(padding)
         ) {
             ListItem(
-                headlineContent = { Text("Supabase URL") },
-                supportingContent = { Text("Not configured") } // TODO: read from DataStore
+                headlineContent = { Text("Account") },
+                supportingContent = { Text("Signed in via Supabase Auth") }
             )
             ListItem(
                 headlineContent = { Text("Sync Interval") },

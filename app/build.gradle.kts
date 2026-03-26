@@ -19,6 +19,9 @@ android {
         versionName = "0.1.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+
+        buildConfigField("String", "SUPABASE_URL", "\"https://your-project.supabase.co\"")
+        buildConfigField("String", "SUPABASE_ANON_KEY", "\"your-anon-key\"")
     }
 
     buildTypes {
@@ -42,7 +45,9 @@ android {
 
     buildFeatures {
         compose = true
+        buildConfig = true
     }
+
 }
 
 dependencies {
@@ -84,7 +89,12 @@ dependencies {
     // WorkManager
     implementation(libs.work.runtime)
 
-    // Ktor
+    // Supabase
+    implementation(platform(libs.supabase.bom))
+    implementation(libs.supabase.gotrue)
+    implementation(libs.supabase.postgrest)
+
+    // Ktor (required by Supabase SDK)
     implementation(libs.ktor.client.core)
     implementation(libs.ktor.client.okhttp)
     implementation(libs.ktor.client.content.negotiation)
@@ -96,6 +106,8 @@ dependencies {
 
     // Testing
     testImplementation(libs.junit)
+    testImplementation(libs.mockk)
+    testImplementation(libs.coroutines.test)
     androidTestImplementation(libs.test.ext)
     androidTestImplementation(libs.espresso.core)
     androidTestImplementation(composeBom)
