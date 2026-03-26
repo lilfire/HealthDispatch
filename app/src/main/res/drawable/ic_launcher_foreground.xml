@@ -4,9 +4,24 @@
     android:height="108dp"
     android:viewportWidth="108"
     android:viewportHeight="108">
+    <!-- Heart shape -->
     <path
         android:fillColor="#FFFFFF"
-        android:pathData="M54,30 L54,54 M54,54 L42,42 M54,54 L66,42 M54,60 L54,78 M38,72 L54,78 L70,72"
-        android:strokeWidth="4"
-        android:strokeColor="#FFFFFF" />
+        android:pathData="M54,74C54,74 33,58 33,44C33,36 39,31 46.5,31C50.5,31 53,33.5 54,36C55,33.5 57.5,31 61.5,31C69,31 75,36 75,44C75,58 54,74 54,74Z" />
+    <!-- ECG pulse line -->
+    <path
+        android:fillColor="#00000000"
+        android:pathData="M26,52L42,52L46,38L50,60L54,44L58,56L62,52L82,52"
+        android:strokeWidth="3"
+        android:strokeColor="#00897B"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round" />
+    <!-- Small upward arrow for "dispatch" -->
+    <path
+        android:fillColor="#00000000"
+        android:pathData="M68,38L74,30M74,30L69,32M74,30L72,35"
+        android:strokeWidth="2.5"
+        android:strokeColor="#FFFFFF"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round" />
 </vector>
