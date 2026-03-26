@@ -21,7 +21,6 @@ mockk = "1.13.13"
 coroutines-test = "1.9.0"
 espresso = "3.6.1"
 test-ext = "1.2.1"
-mockk = "1.13.13"
 turbine = "1.2.0"
 
 [libraries]
@@ -84,8 +83,6 @@ coroutines-test = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-
 test-ext = { group = "androidx.test.ext", name = "junit", version.ref = "test-ext" }
 espresso-core = { group = "androidx.test.espresso", name = "espresso-core", version.ref = "espresso" }
 compose-ui-test = { group = "androidx.compose.ui", name = "ui-test-junit4" }
-coroutines-test = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-test", version.ref = "coroutines" }
-mockk = { group = "io.mockk", name = "mockk", version.ref = "mockk" }
 turbine = { group = "app.cash.turbine", name = "turbine", version.ref = "turbine" }
 ktor-client-mock = { group = "io.ktor", name = "ktor-client-mock", version.ref = "ktor" }
 
