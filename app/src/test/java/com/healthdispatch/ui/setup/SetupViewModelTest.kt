@@ -1,11 +1,15 @@
 package com.healthdispatch.ui.setup
 
-import com.healthdispatch.data.auth.AuthClient
+import app.cash.turbine.test
+import com.healthdispatch.data.auth.AuthRepository
+import com.healthdispatch.data.auth.AuthState
 import io.mockk.coEvery
 import io.mockk.coVerify
+import io.mockk.every
 import io.mockk.mockk
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.resetMain
@@ -22,15 +26,18 @@ import org.junit.Test
 @OptIn(ExperimentalCoroutinesApi::class)
 class SetupViewModelTest {
 
-    private lateinit var mockAuthClient: AuthClient
-    private lateinit var viewModel: SetupViewModel
     private val testDispatcher = StandardTestDispatcher()
+    private lateinit var authRepository: AuthRepository
+    private val authStateFlow = MutableStateFlow<AuthState>(AuthState.Unknown)
 
     @Before
-    fun setUp() {
+    fun setup() {
         Dispatchers.setMain(testDispatcher)
-        mockAuthClient = mockk()
-        viewModel = SetupViewModel(mockAuthClient)
+        authRepository = mockk(relaxed = true)
+        every { authRepository.authState } returns authStateFlow
+        coEvery { authRepository.refreshAuthState() } coAnswers {
+            // default: stays Unknown
+        }
     }
 
     @After
@@ -38,125 +45,236 @@ class SetupViewModelTest {
         Dispatchers.resetMain()
     }
 
+    private fun createViewModel() = SetupViewModel(authRepository)
+
     @Test
-    fun `initial state has empty fields and no error`() {
-        val state = viewModel.uiState.value
+    fun `initial state is sign-in mode with empty fields`() = runTest {
+        val vm = createViewModel()
+        val state = vm.uiState.value
+        assertFalse(state.isSignUpMode)
         assertEquals("", state.email)
         assertEquals("", state.password)
+        assertEquals("", state.confirmPassword)
         assertFalse(state.isLoading)
         assertNull(state.errorMessage)
-        assertFalse(state.isAuthenticated)
     }
 
     @Test
-    fun `onEmailChange updates email in state`() {
-        viewModel.onEmailChange("user@example.com")
-        assertEquals("user@example.com", viewModel.uiState.value.email)
+    fun `updateEmail changes email in state`() = runTest {
+        val vm = createViewModel()
+        vm.updateEmail("test@example.com")
+        assertEquals("test@example.com", vm.uiState.value.email)
     }
 
     @Test
-    fun `onPasswordChange updates password in state`() {
-        viewModel.onPasswordChange("secret123")
-        assertEquals("secret123", viewModel.uiState.value.password)
+    fun `updatePassword changes password in state`() = runTest {
+        val vm = createViewModel()
+        vm.updatePassword("secret123")
+        assertEquals("secret123", vm.uiState.value.password)
     }
 
     @Test
-    fun `signIn sets isLoading true then false on success`() = runTest(testDispatcher) {
-        coEvery { mockAuthClient.signInWithEmail(any(), any()) } returns Result.success(Unit)
+    fun `updateConfirmPassword changes confirmPassword in state`() = runTest {
+        val vm = createViewModel()
+        vm.updateConfirmPassword("secret123")
+        assertEquals("secret123", vm.uiState.value.confirmPassword)
+    }
 
-        viewModel.onEmailChange("user@example.com")
-        viewModel.onPasswordChange("password123")
-        viewModel.signIn()
+    @Test
+    fun `toggleMode switches between sign-in and sign-up`() = runTest {
+        val vm = createViewModel()
+        assertFalse(vm.uiState.value.isSignUpMode)
+        vm.toggleMode()
+        assertTrue(vm.uiState.value.isSignUpMode)
+        vm.toggleMode()
+        assertFalse(vm.uiState.value.isSignUpMode)
+    }
 
-        // After launching but before completion, loading should be true
-        assertTrue(viewModel.uiState.value.isLoading)
-
+    @Test
+    fun `toggleMode clears error message`() = runTest {
+        val vm = createViewModel()
+        vm.updateEmail("bad")
+        vm.submit()
         advanceUntilIdle()
-
-        assertFalse(viewModel.uiState.value.isLoading)
-        assertTrue(viewModel.uiState.value.isAuthenticated)
+        // Should have an error now
+        vm.toggleMode()
+        assertNull(vm.uiState.value.errorMessage)
     }
 
     @Test
-    fun `signIn calls authClient with correct email and password`() = runTest(testDispatcher) {
-        coEvery { mockAuthClient.signInWithEmail(any(), any()) } returns Result.success(Unit)
-
-        viewModel.onEmailChange("test@example.com")
-        viewModel.onPasswordChange("mypassword")
-        viewModel.signIn()
+    fun `sign-in validates email is not blank`() = runTest {
+        val vm = createViewModel()
+        vm.updatePassword("password123")
+        vm.submit()
         advanceUntilIdle()
-
-        coVerify(exactly = 1) { mockAuthClient.signInWithEmail("test@example.com", "mypassword") }
+        assertEquals("Please enter your email address", vm.uiState.value.errorMessage)
     }
 
     @Test
-    fun `signIn sets error message on failure`() = runTest(testDispatcher) {
-        coEvery { mockAuthClient.signInWithEmail(any(), any()) } returns
-                Result.failure(Exception("Invalid credentials"))
-
-        viewModel.onEmailChange("user@example.com")
-        viewModel.onPasswordChange("wrong")
-        viewModel.signIn()
+    fun `sign-in validates password is not blank`() = runTest {
+        val vm = createViewModel()
+        vm.updateEmail("test@example.com")
+        vm.submit()
         advanceUntilIdle()
-
-        assertFalse(viewModel.uiState.value.isLoading)
-        assertFalse(viewModel.uiState.value.isAuthenticated)
-        assertEquals("Invalid credentials", viewModel.uiState.value.errorMessage)
+        assertEquals("Please enter your password", vm.uiState.value.errorMessage)
     }
 
     @Test
-    fun `signIn does nothing when email is blank`() = runTest(testDispatcher) {
-        viewModel.onPasswordChange("password123")
-        viewModel.signIn()
+    fun `sign-in validates email format`() = runTest {
+        val vm = createViewModel()
+        vm.updateEmail("notanemail")
+        vm.updatePassword("password123")
+        vm.submit()
         advanceUntilIdle()
-
-        coVerify(exactly = 0) { mockAuthClient.signInWithEmail(any(), any()) }
-        assertFalse(viewModel.uiState.value.isLoading)
+        assertEquals("Please enter a valid email address", vm.uiState.value.errorMessage)
     }
 
     @Test
-    fun `signIn does nothing when password is blank`() = runTest(testDispatcher) {
-        viewModel.onEmailChange("user@example.com")
-        viewModel.signIn()
+    fun `sign-up validates passwords match`() = runTest {
+        val vm = createViewModel()
+        vm.toggleMode()
+        vm.updateEmail("test@example.com")
+        vm.updatePassword("password123")
+        vm.updateConfirmPassword("different")
+        vm.submit()
         advanceUntilIdle()
-
-        coVerify(exactly = 0) { mockAuthClient.signInWithEmail(any(), any()) }
-        assertFalse(viewModel.uiState.value.isLoading)
+        assertEquals("Passwords do not match", vm.uiState.value.errorMessage)
     }
 
     @Test
-    fun `signIn clears previous error before attempting`() = runTest(testDispatcher) {
-        coEvery { mockAuthClient.signInWithEmail(any(), any()) } returns
-                Result.failure(Exception("First error"))
-
-        viewModel.onEmailChange("user@example.com")
-        viewModel.onPasswordChange("pass")
-        viewModel.signIn()
+    fun `sign-up validates password minimum length`() = runTest {
+        val vm = createViewModel()
+        vm.toggleMode()
+        vm.updateEmail("test@example.com")
+        vm.updatePassword("12345")
+        vm.updateConfirmPassword("12345")
+        vm.submit()
         advanceUntilIdle()
-
-        assertEquals("First error", viewModel.uiState.value.errorMessage)
-
-        coEvery { mockAuthClient.signInWithEmail(any(), any()) } returns Result.success(Unit)
-        viewModel.signIn()
-
-        // Error should be cleared immediately when new sign-in starts
-        assertNull(viewModel.uiState.value.errorMessage)
-
-        advanceUntilIdle()
-        assertTrue(viewModel.uiState.value.isAuthenticated)
+        assertEquals("Password must be at least 6 characters", vm.uiState.value.errorMessage)
     }
 
     @Test
-    fun `signIn prevents concurrent requests`() = runTest(testDispatcher) {
-        coEvery { mockAuthClient.signInWithEmail(any(), any()) } returns Result.success(Unit)
+    fun `successful sign-in calls repository and sets loading state`() = runTest {
+        coEvery { authRepository.signIn(any(), any()) } returns Result.success(Unit)
+        val vm = createViewModel()
 
-        viewModel.onEmailChange("user@example.com")
-        viewModel.onPasswordChange("pass")
-        viewModel.signIn()
-        viewModel.signIn() // second call while first is loading
+        vm.uiState.test {
+            awaitItem() // initial state
 
+            vm.updateEmail("test@example.com")
+            awaitItem()
+            vm.updatePassword("password123")
+            awaitItem()
+            vm.submit()
+
+            // Should show loading
+            val loadingState = awaitItem()
+            assertTrue(loadingState.isLoading)
+
+            // Should complete with auth success event
+            advanceUntilIdle()
+            cancelAndIgnoreRemainingEvents()
+        }
+
+        coVerify { authRepository.signIn("test@example.com", "password123") }
+    }
+
+    @Test
+    fun `failed sign-in shows error message`() = runTest {
+        coEvery { authRepository.signIn(any(), any()) } returns
+            Result.failure(Exception("Invalid login credentials"))
+        val vm = createViewModel()
+        vm.updateEmail("test@example.com")
+        vm.updatePassword("wrongpassword")
+        vm.submit()
         advanceUntilIdle()
+        assertEquals("Invalid login credentials", vm.uiState.value.errorMessage)
+        assertFalse(vm.uiState.value.isLoading)
+    }
 
-        coVerify(exactly = 1) { mockAuthClient.signInWithEmail(any(), any()) }
+    @Test
+    fun `successful sign-up calls repository`() = runTest {
+        coEvery { authRepository.signUp(any(), any()) } returns Result.success(Unit)
+        val vm = createViewModel()
+        vm.toggleMode()
+        vm.updateEmail("new@example.com")
+        vm.updatePassword("password123")
+        vm.updateConfirmPassword("password123")
+        vm.submit()
+        advanceUntilIdle()
+        coVerify { authRepository.signUp("new@example.com", "password123") }
+    }
+
+    @Test
+    fun `failed sign-up shows error message`() = runTest {
+        coEvery { authRepository.signUp(any(), any()) } returns
+            Result.failure(Exception("User already registered"))
+        val vm = createViewModel()
+        vm.toggleMode()
+        vm.updateEmail("existing@example.com")
+        vm.updatePassword("password123")
+        vm.updateConfirmPassword("password123")
+        vm.submit()
+        advanceUntilIdle()
+        assertEquals("User already registered", vm.uiState.value.errorMessage)
+    }
+
+    @Test
+    fun `handleGoogleSignIn calls repository with token`() = runTest {
+        coEvery { authRepository.signInWithGoogle(any()) } returns Result.success(Unit)
+        val vm = createViewModel()
+        vm.handleGoogleSignIn("google-id-token-123")
+        advanceUntilIdle()
+        coVerify { authRepository.signInWithGoogle("google-id-token-123") }
+    }
+
+    @Test
+    fun `handleGoogleSignIn failure shows error`() = runTest {
+        coEvery { authRepository.signInWithGoogle(any()) } returns
+            Result.failure(Exception("Google sign-in failed"))
+        val vm = createViewModel()
+        vm.handleGoogleSignIn("bad-token")
+        advanceUntilIdle()
+        assertEquals("Google sign-in failed", vm.uiState.value.errorMessage)
+    }
+
+    @Test
+    fun `clearError removes error message`() = runTest {
+        val vm = createViewModel()
+        vm.submit() // triggers validation error
+        advanceUntilIdle()
+        assertTrue(vm.uiState.value.errorMessage != null)
+        vm.clearError()
+        assertNull(vm.uiState.value.errorMessage)
+    }
+
+    @Test
+    fun `auth state authenticated emits navigation event`() = runTest {
+        authStateFlow.value = AuthState.Authenticated
+        val vm = createViewModel()
+        advanceUntilIdle()
+        vm.authSuccessEvent.test {
+            // Check if event was emitted
+            val event = awaitItem()
+            assertTrue(event)
+        }
+    }
+
+    @Test
+    fun `submit does nothing while loading`() = runTest {
+        coEvery { authRepository.signIn(any(), any()) } coAnswers {
+            kotlinx.coroutines.delay(5000)
+            Result.success(Unit)
+        }
+        val vm = createViewModel()
+        vm.updateEmail("test@example.com")
+        vm.updatePassword("password123")
+        vm.submit()
+        testScheduler.advanceTimeBy(100)
+        assertTrue(vm.uiState.value.isLoading)
+        // Second submit should be ignored
+        vm.submit()
+        // Still only one call should have been made
+        coVerify(exactly = 1) { authRepository.signIn(any(), any()) }
     }
 }

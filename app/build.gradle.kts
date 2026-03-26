@@ -118,6 +118,8 @@ dependencies {
     testImplementation(libs.junit)
     testImplementation(libs.mockk)
     testImplementation(libs.coroutines.test)
+    testImplementation(libs.turbine)
+    testImplementation(libs.ktor.client.mock)
     androidTestImplementation(libs.test.ext)
     androidTestImplementation(libs.espresso.core)
     androidTestImplementation(composeBom)
