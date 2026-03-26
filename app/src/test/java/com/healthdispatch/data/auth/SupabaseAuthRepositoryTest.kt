@@ -110,7 +110,7 @@ class SupabaseAuthRepositoryTest {
     }
 
     @Test
-    fun `signIn fails with server error`() = testScope.runTest {
+    fun `signIn fails with invalid credentials maps to friendly message`() = testScope.runTest {
         seedConfig()
         val repo = createRepository(
             statusCode = HttpStatusCode.BadRequest,
@@ -118,7 +118,31 @@ class SupabaseAuthRepositoryTest {
         )
         val result = repo.signIn("user@example.com", "wrongpassword")
         assertTrue(result.isFailure)
-        assertEquals("Invalid login credentials", result.exceptionOrNull()?.message)
+        assertEquals("The email or password you entered is incorrect", result.exceptionOrNull()?.message)
+    }
+
+    @Test
+    fun `signIn fails with email not confirmed maps to friendly message`() = testScope.runTest {
+        seedConfig()
+        val repo = createRepository(
+            statusCode = HttpStatusCode.BadRequest,
+            responseBody = """{"error":"invalid_grant","error_description":"Email not confirmed"}"""
+        )
+        val result = repo.signIn("user@example.com", "password123")
+        assertTrue(result.isFailure)
+        assertEquals("Please verify your email address before signing in", result.exceptionOrNull()?.message)
+    }
+
+    @Test
+    fun `signIn fails with rate limit maps to friendly message`() = testScope.runTest {
+        seedConfig()
+        val repo = createRepository(
+            statusCode = HttpStatusCode.TooManyRequests,
+            responseBody = """{"error":"over_request_rate_limit","error_description":"For security purposes, you can only request this after 60 seconds."}"""
+        )
+        val result = repo.signIn("user@example.com", "password123")
+        assertTrue(result.isFailure)
+        assertEquals("Too many attempts. Please wait a moment and try again", result.exceptionOrNull()?.message)
     }
 
     @Test
@@ -131,7 +155,7 @@ class SupabaseAuthRepositoryTest {
     }
 
     @Test
-    fun `signUp fails with duplicate email`() = testScope.runTest {
+    fun `signUp fails with duplicate email maps to friendly message`() = testScope.runTest {
         seedConfig()
         val repo = createRepository(
             statusCode = HttpStatusCode.UnprocessableEntity,
@@ -139,7 +163,19 @@ class SupabaseAuthRepositoryTest {
         )
         val result = repo.signUp("existing@example.com", "password123")
         assertTrue(result.isFailure)
-        assertEquals("User already registered", result.exceptionOrNull()?.message)
+        assertEquals("An account with this email already exists. Try signing in instead", result.exceptionOrNull()?.message)
+    }
+
+    @Test
+    fun `signUp fails with weak password maps to friendly message`() = testScope.runTest {
+        seedConfig()
+        val repo = createRepository(
+            statusCode = HttpStatusCode.UnprocessableEntity,
+            responseBody = """{"error":"weak_password","error_description":"Password should be at least 6 characters","msg":""}"""
+        )
+        val result = repo.signUp("new@example.com", "12345")
+        assertTrue(result.isFailure)
+        assertEquals("Password must be at least 6 characters long", result.exceptionOrNull()?.message)
     }
 
     @Test
@@ -184,6 +220,21 @@ class SupabaseAuthRepositoryTest {
         val result = repo.signOut()
         assertTrue(result.isSuccess)
         assertEquals(AuthState.Unauthenticated, repo.authState.value)
+    }
+
+    @Test
+    fun `signIn fails with network error maps to friendly message`() = testScope.runTest {
+        seedConfig()
+        val failingEngine = MockEngine { _ ->
+            throw java.net.UnknownHostException("Unable to resolve host")
+        }
+        val httpClient = HttpClient(failingEngine) {
+            install(ContentNegotiation) { json(json) }
+        }
+        val repo = SupabaseAuthRepository(httpClient, dataStore, json)
+        val result = repo.signIn("user@example.com", "password123")
+        assertTrue(result.isFailure)
+        assertEquals("Unable to connect. Please check your internet connection", result.exceptionOrNull()?.message)
     }
 
     @Test

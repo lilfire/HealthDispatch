@@ -5,9 +5,11 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
@@ -38,7 +40,12 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusDirection
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.semantics.LiveRegionMode
+import androidx.compose.ui.semantics.liveRegion
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
@@ -85,12 +92,19 @@ fun SetupScreenContent(
     onClearError: () -> Unit
 ) {
     val focusManager = LocalFocusManager.current
+    val emailFocusRequester = remember { FocusRequester() }
     var passwordVisible by remember { mutableStateOf(false) }
     var confirmPasswordVisible by remember { mutableStateOf(false) }
+
+    // Item 6: Auto-focus email field
+    LaunchedEffect(Unit) {
+        emailFocusRequester.requestFocus()
+    }
 
     Column(
         modifier = Modifier
             .fillMaxSize()
+            .imePadding() // Item 1: imePadding for keyboard
             .verticalScroll(rememberScrollState())
             .padding(24.dp),
         verticalArrangement = Arrangement.Center,
@@ -111,6 +125,35 @@ fun SetupScreenContent(
 
         Spacer(modifier = Modifier.height(32.dp))
 
+        // Item 5: Google Sign-In moved to top, above email/password form
+        OutlinedButton(
+            onClick = { onGoogleSignIn?.invoke() },
+            enabled = !uiState.isLoading && onGoogleSignIn != null,
+            modifier = Modifier
+                .fillMaxWidth()
+                .defaultMinSize(minHeight = 48.dp) // Item 4: touch target
+        ) {
+            Text("Sign in with Google")
+        }
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        // Item 5: "or" divider between Google and email form
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            HorizontalDivider(modifier = Modifier.weight(1f))
+            Text(
+                text = "  or  ",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            HorizontalDivider(modifier = Modifier.weight(1f))
+        }
+
+        Spacer(modifier = Modifier.height(16.dp))
+
         // Email field
         OutlinedTextField(
             value = uiState.email,
@@ -120,8 +163,12 @@ fun SetupScreenContent(
             },
             label = { Text("Email") },
             placeholder = { Text("you@example.com") },
-            leadingIcon = { Icon(Icons.Default.Email, contentDescription = null) },
-            modifier = Modifier.fillMaxWidth(),
+            leadingIcon = {
+                Icon(Icons.Default.Email, contentDescription = "Email") // Item 2
+            },
+            modifier = Modifier
+                .fillMaxWidth()
+                .focusRequester(emailFocusRequester), // Item 6: FocusRequester
             singleLine = true,
             enabled = !uiState.isLoading,
             keyboardOptions = KeyboardOptions(
@@ -144,9 +191,14 @@ fun SetupScreenContent(
                 onClearError()
             },
             label = { Text("Password") },
-            leadingIcon = { Icon(Icons.Default.Lock, contentDescription = null) },
+            leadingIcon = {
+                Icon(Icons.Default.Lock, contentDescription = "Password") // Item 2
+            },
             trailingIcon = {
-                IconButton(onClick = { passwordVisible = !passwordVisible }) {
+                IconButton(
+                    onClick = { passwordVisible = !passwordVisible },
+                    modifier = Modifier.defaultMinSize(minWidth = 48.dp, minHeight = 48.dp) // Item 4
+                ) {
                     Icon(
                         if (passwordVisible) Icons.Default.VisibilityOff else Icons.Default.Visibility,
                         contentDescription = if (passwordVisible) "Hide password" else "Show password"
@@ -180,9 +232,14 @@ fun SetupScreenContent(
                         onClearError()
                     },
                     label = { Text("Confirm Password") },
-                    leadingIcon = { Icon(Icons.Default.Lock, contentDescription = null) },
+                    leadingIcon = {
+                        Icon(Icons.Default.Lock, contentDescription = "Confirm password") // Item 2
+                    },
                     trailingIcon = {
-                        IconButton(onClick = { confirmPasswordVisible = !confirmPasswordVisible }) {
+                        IconButton(
+                            onClick = { confirmPasswordVisible = !confirmPasswordVisible },
+                            modifier = Modifier.defaultMinSize(minWidth = 48.dp, minHeight = 48.dp) // Item 4
+                        ) {
                             Icon(
                                 if (confirmPasswordVisible) Icons.Default.VisibilityOff else Icons.Default.Visibility,
                                 contentDescription = if (confirmPasswordVisible) "Hide password" else "Show password"
@@ -205,14 +262,17 @@ fun SetupScreenContent(
             }
         }
 
-        // Error message
+        // Item 3: Error message with LiveRegion.Polite for accessibility
         AnimatedVisibility(visible = uiState.errorMessage != null) {
             Column {
                 Spacer(modifier = Modifier.height(8.dp))
                 Text(
                     text = uiState.errorMessage ?: "",
                     color = MaterialTheme.colorScheme.error,
-                    style = MaterialTheme.typography.bodySmall
+                    style = MaterialTheme.typography.bodySmall,
+                    modifier = Modifier.semantics {
+                        liveRegion = LiveRegionMode.Polite
+                    }
                 )
             }
         }
@@ -223,7 +283,9 @@ fun SetupScreenContent(
         Button(
             onClick = onSubmit,
             enabled = !uiState.isLoading,
-            modifier = Modifier.fillMaxWidth()
+            modifier = Modifier
+                .fillMaxWidth()
+                .defaultMinSize(minHeight = 48.dp) // Item 4: touch target
         ) {
             if (uiState.isLoading) {
                 CircularProgressIndicator(
@@ -236,39 +298,13 @@ fun SetupScreenContent(
             }
         }
 
-        Spacer(modifier = Modifier.height(16.dp))
-
-        // Divider with "or"
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            HorizontalDivider(modifier = Modifier.weight(1f))
-            Text(
-                text = "  or  ",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-            HorizontalDivider(modifier = Modifier.weight(1f))
-        }
-
-        Spacer(modifier = Modifier.height(16.dp))
-
-        // Google Sign-In button
-        OutlinedButton(
-            onClick = { onGoogleSignIn?.invoke() },
-            enabled = !uiState.isLoading && onGoogleSignIn != null,
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            Text("Sign in with Google")
-        }
-
         Spacer(modifier = Modifier.height(24.dp))
 
         // Toggle mode link
         TextButton(
             onClick = onToggleMode,
-            enabled = !uiState.isLoading
+            enabled = !uiState.isLoading,
+            modifier = Modifier.defaultMinSize(minHeight = 48.dp) // Item 4: touch target
         ) {
             Text(
                 if (uiState.isSignUpMode) {

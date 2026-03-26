@@ -138,16 +138,37 @@ class SupabaseAuthRepository @Inject constructor(
                 Result.success(Unit)
             } else {
                 val errorBody = response.bodyAsText()
-                val errorMsg = try {
+                val rawMsg = try {
                     val error = json.decodeFromString<AuthErrorResponse>(errorBody)
                     error.error_description.ifBlank { error.msg.ifBlank { error.error } }
                 } catch (_: Exception) {
                     "Authentication failed (${response.status})"
                 }
-                Result.failure(Exception(errorMsg))
+                Result.failure(Exception(mapErrorMessage(rawMsg)))
             }
+        } catch (e: java.net.UnknownHostException) {
+            Result.failure(Exception("Unable to connect. Please check your internet connection"))
+        } catch (e: java.net.ConnectException) {
+            Result.failure(Exception("Unable to connect. Please check your internet connection"))
         } catch (e: Exception) {
             Result.failure(e)
+        }
+    }
+
+    private fun mapErrorMessage(raw: String): String {
+        val lower = raw.lowercase()
+        return when {
+            lower.contains("invalid login credentials") ->
+                "The email or password you entered is incorrect"
+            lower.contains("email not confirmed") ->
+                "Please verify your email address before signing in"
+            lower.contains("user already registered") ->
+                "An account with this email already exists. Try signing in instead"
+            lower.contains("password should be at least") || lower.contains("weak_password") ->
+                "Password must be at least 6 characters long"
+            lower.contains("request_rate_limit") || lower.contains("rate limit") ->
+                "Too many attempts. Please wait a moment and try again"
+            else -> raw
         }
     }
 
