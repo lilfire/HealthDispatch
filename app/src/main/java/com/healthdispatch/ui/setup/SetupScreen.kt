@@ -1,446 +1,340 @@
 package com.healthdispatch.ui.setup
 
-import android.webkit.URLUtil
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.compose.animation.AnimatedContent
-import androidx.compose.animation.slideInHorizontally
-import androidx.compose.animation.slideOutHorizontally
-import androidx.compose.animation.togetherWith
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Check
-import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Email
+import androidx.compose.material.icons.filled.Lock
+import androidx.compose.material.icons.filled.Visibility
+import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.Button
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
-import androidx.compose.material3.LinearProgressIndicator
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusDirection
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.semantics.LiveRegionMode
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.liveRegion
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
-import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
-import androidx.health.connect.client.PermissionController
 import androidx.hilt.navigation.compose.hiltViewModel
-
-private const val MIN_API_KEY_LENGTH = 20
-
-internal fun validateSupabaseUrl(url: String): String? {
-    if (url.isBlank()) return null
-    if (!URLUtil.isHttpsUrl(url)) return "URL must start with https://"
-    if (!url.contains(".supabase.co")) return "URL should contain .supabase.co"
-    return null
-}
-
-internal fun validateApiKey(key: String): String? {
-    if (key.isBlank()) return null
-    if (key.length < MIN_API_KEY_LENGTH) return "API key must be at least $MIN_API_KEY_LENGTH characters"
-    return null
-}
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 
 @Composable
 fun SetupScreen(
     onSetupComplete: () -> Unit,
-    onSkip: () -> Unit = {},
-    viewModel: SetupViewModel = hiltViewModel(),
+    viewModel: SetupViewModel = hiltViewModel()
 ) {
-    val state by viewModel.uiState.collectAsState()
-
-    LaunchedEffect(state.isComplete) {
-        if (state.isComplete) onSetupComplete()
-    }
-
-    Scaffold { innerPadding ->
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(innerPadding)
-                .imePadding()
-                .padding(24.dp),
-        ) {
-            LinearProgressIndicator(
-                progress = { (state.currentStep + 1).toFloat() / viewModel.totalSteps },
-                modifier = Modifier.fillMaxWidth(),
-            )
-
-            Spacer(modifier = Modifier.height(8.dp))
-
-            Text(
-                text = "Step ${state.currentStep + 1} of ${viewModel.totalSteps}",
-                style = MaterialTheme.typography.labelMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            AnimatedContent(
-                targetState = state.currentStep,
-                transitionSpec = {
-                    if (targetState > initialState) {
-                        slideInHorizontally { it } togetherWith slideOutHorizontally { -it }
-                    } else {
-                        slideInHorizontally { -it } togetherWith slideOutHorizontally { it }
-                    }
-                },
-                modifier = Modifier.weight(1f),
-                label = "wizard_step",
-            ) { step ->
-                when (step) {
-                    0 -> WelcomeStep()
-                    1 -> CloudConfigStep(
-                        supabaseUrl = state.supabaseUrl,
-                        supabaseKey = state.supabaseKey,
-                        onUrlChange = viewModel::updateSupabaseUrl,
-                        onKeyChange = viewModel::updateSupabaseKey,
-                    )
-                    2 -> PermissionsStep(
-                        permissionsGranted = state.permissionsGranted,
-                        healthConnectAvailable = state.healthConnectAvailable,
-                        onPermissionsResult = { viewModel.refreshPermissions() },
-                    )
-                    3 -> ConfirmationStep(
-                        supabaseUrl = state.supabaseUrl,
-                        permissionsGranted = state.permissionsGranted,
-                    )
-                }
-            }
-
-            WizardNavButtons(
-                currentStep = state.currentStep,
-                totalSteps = viewModel.totalSteps,
-                canAdvance = when (state.currentStep) {
-                    1 -> state.supabaseUrl.isNotBlank() &&
-                            validateSupabaseUrl(state.supabaseUrl) == null &&
-                            state.supabaseKey.isNotBlank() &&
-                            validateApiKey(state.supabaseKey) == null
-                    else -> true
-                },
-                onBack = viewModel::previousStep,
-                onNext = viewModel::nextStep,
-                onFinish = viewModel::completeSetup,
-            )
-
-            Spacer(modifier = Modifier.height(12.dp))
-
-            TextButton(onClick = onSkip) {
-                Text("Skip for now")
-            }
-
-            Spacer(modifier = Modifier.height(4.dp))
-
-            Text(
-                text = "You can set this up later in Settings",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-        }
-    }
-}
-
-@Composable
-private fun WelcomeStep() {
-    Column(
-        modifier = Modifier.fillMaxSize(),
-        verticalArrangement = Arrangement.Center,
-        horizontalAlignment = Alignment.CenterHorizontally,
-    ) {
-        Text(
-            text = "HealthDispatch",
-            style = MaterialTheme.typography.headlineLarge,
-        )
-
-        Spacer(modifier = Modifier.height(16.dp))
-
-        Text(
-            text = "Sync your Health Connect data to your own cloud database — securely and on your terms.",
-            style = MaterialTheme.typography.bodyLarge,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            textAlign = TextAlign.Center,
-        )
-
-        Spacer(modifier = Modifier.height(24.dp))
-
-        Text(
-            text = "In the next few steps you'll configure your cloud endpoint, grant Health Connect permissions, and start syncing.",
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            textAlign = TextAlign.Center,
-        )
-    }
-}
-
-@Composable
-private fun CloudConfigStep(
-    supabaseUrl: String,
-    supabaseKey: String,
-    onUrlChange: (String) -> Unit,
-    onKeyChange: (String) -> Unit,
-) {
-    var urlTouched by remember { mutableStateOf(false) }
-    var keyTouched by remember { mutableStateOf(false) }
-
-    val urlError = if (urlTouched) validateSupabaseUrl(supabaseUrl) else null
-    val keyError = if (keyTouched) validateApiKey(supabaseKey) else null
-
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .verticalScroll(rememberScrollState()),
-        verticalArrangement = Arrangement.Center,
-        horizontalAlignment = Alignment.CenterHorizontally,
-    ) {
-        Text(
-            text = "Cloud Configuration",
-            style = MaterialTheme.typography.headlineMedium,
-        )
-
-        Spacer(modifier = Modifier.height(8.dp))
-
-        Text(
-            text = "Enter your Supabase project credentials. Your data is sent only to this endpoint.",
-            style = MaterialTheme.typography.bodyLarge,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            textAlign = TextAlign.Center,
-        )
-
-        Spacer(modifier = Modifier.height(32.dp))
-
-        OutlinedTextField(
-            value = supabaseUrl,
-            onValueChange = {
-                onUrlChange(it)
-                urlTouched = true
-            },
-            label = { Text("Supabase URL") },
-            placeholder = { Text("https://your-project.supabase.co") },
-            modifier = Modifier.fillMaxWidth(),
-            singleLine = true,
-            isError = urlError != null,
-            supportingText = urlError?.let { error -> { Text(error) } }
-        )
-
-        Spacer(modifier = Modifier.height(16.dp))
-
-        OutlinedTextField(
-            value = supabaseKey,
-            onValueChange = {
-                onKeyChange(it)
-                keyTouched = true
-            },
-            label = { Text("Supabase API Key") },
-            modifier = Modifier.fillMaxWidth(),
-            singleLine = true,
-            visualTransformation = PasswordVisualTransformation(),
-            isError = keyError != null,
-            supportingText = keyError?.let { error -> { Text(error) } }
-        )
-    }
-}
-
-@Composable
-private fun PermissionsStep(
-    permissionsGranted: Boolean,
-    healthConnectAvailable: Boolean,
-    onPermissionsResult: () -> Unit,
-) {
-    val permissionLauncher = rememberLauncherForActivityResult(
-        contract = PermissionController.createRequestPermissionResultContract(),
-        onResult = { onPermissionsResult() },
-    )
+    val uiState by viewModel.uiState.collectAsStateWithLifecycle()
 
     LaunchedEffect(Unit) {
-        onPermissionsResult()
+        viewModel.authSuccessEvent.collect {
+            onSetupComplete()
+        }
     }
 
-    Column(
-        modifier = Modifier.fillMaxSize(),
-        verticalArrangement = Arrangement.Center,
-        horizontalAlignment = Alignment.CenterHorizontally,
-    ) {
-        Text(
-            text = "Health Connect Permissions",
-            style = MaterialTheme.typography.headlineMedium,
-        )
+    SetupScreenContent(
+        uiState = uiState,
+        onEmailChange = viewModel::updateEmail,
+        onPasswordChange = viewModel::updatePassword,
+        onConfirmPasswordChange = viewModel::updateConfirmPassword,
+        onToggleMode = viewModel::toggleMode,
+        onSubmit = viewModel::submit,
+        onClearError = viewModel::clearError
+    )
+}
 
-        Spacer(modifier = Modifier.height(8.dp))
+@Composable
+fun SetupScreenContent(
+    uiState: SetupUiState,
+    onEmailChange: (String) -> Unit,
+    onPasswordChange: (String) -> Unit,
+    onConfirmPasswordChange: (String) -> Unit,
+    onToggleMode: () -> Unit,
+    onSubmit: () -> Unit,
+    onClearError: () -> Unit
+) {
+    val focusManager = LocalFocusManager.current
+    val emailFocusRequester = remember { FocusRequester() }
+    var passwordVisible by remember { mutableStateOf(false) }
+    var confirmPasswordVisible by remember { mutableStateOf(false) }
 
-        Text(
-            text = "HealthDispatch reads your health data from Health Connect to sync it to your configured cloud database. No data is shared with third parties.",
-            style = MaterialTheme.typography.bodyLarge,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            textAlign = TextAlign.Center,
-        )
+    // Item 6: Auto-focus email field
+    LaunchedEffect(Unit) {
+        emailFocusRequester.requestFocus()
+    }
 
-        Spacer(modifier = Modifier.height(24.dp))
-
-        val dataTypes = listOf("Steps", "Heart Rate", "Sleep", "Exercise", "Weight")
-        dataTypes.forEach { type ->
-            Row(
+    // V1: Wrap in Surface for proper dark mode theming
+    Surface(modifier = Modifier.fillMaxSize()) {
+        // R1: Center content with max-width constraint for tablets
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .imePadding(),
+            contentAlignment = Alignment.Center
+        ) {
+            Column(
                 modifier = Modifier
+                    .widthIn(max = 400.dp)
                     .fillMaxWidth()
-                    .padding(vertical = 4.dp),
-                verticalAlignment = Alignment.CenterVertically,
+                    .verticalScroll(rememberScrollState())
+                    .padding(24.dp),
+                verticalArrangement = Arrangement.Center,
+                horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                Icon(
-                    imageVector = if (permissionsGranted) Icons.Default.Check else Icons.Default.Close,
-                    contentDescription = null,
-                    tint = if (permissionsGranted) {
-                        MaterialTheme.colorScheme.primary
-                    } else {
-                        MaterialTheme.colorScheme.onSurfaceVariant
-                    },
-                )
                 Text(
-                    text = type,
-                    style = MaterialTheme.typography.bodyLarge,
-                    modifier = Modifier.padding(start = 12.dp),
+                    text = "HealthDispatch",
+                    style = MaterialTheme.typography.headlineLarge
                 )
-            }
-        }
 
-        Spacer(modifier = Modifier.height(24.dp))
+                Spacer(modifier = Modifier.height(8.dp))
 
-        if (!healthConnectAvailable) {
-            Text(
-                text = "Health Connect is not available on this device. You can still continue, but syncing will not work until Health Connect is installed.",
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.error,
-                textAlign = TextAlign.Center,
-            )
-        } else if (!permissionsGranted) {
-            Button(
-                onClick = {
-                    permissionLauncher.launch(
-                        setOf(
-                            "android.permission.health.READ_STEPS",
-                            "android.permission.health.READ_HEART_RATE",
-                            "android.permission.health.READ_SLEEP",
-                            "android.permission.health.READ_EXERCISE",
-                            "android.permission.health.READ_WEIGHT",
-                        )
+                Text(
+                    text = if (uiState.isSignUpMode) "Create your account" else "Sign in to your account",
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+
+                Spacer(modifier = Modifier.height(32.dp))
+
+                // U2: Google Sign-In hidden until backend config is available
+                // TODO: Wire up Google Sign-In with Credential Manager API once
+                //  backend OAuth client ID is configured. Re-enable this button
+                //  and pass the ID token to SetupViewModel.handleGoogleSignIn().
+
+                // Email field
+                OutlinedTextField(
+                    value = uiState.email,
+                    onValueChange = {
+                        onEmailChange(it)
+                        onClearError()
+                    },
+                    label = { Text("Email") },
+                    placeholder = { Text("you@example.com") },
+                    leadingIcon = {
+                        Icon(Icons.Default.Email, contentDescription = "Email")
+                    },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .focusRequester(emailFocusRequester),
+                    singleLine = true,
+                    enabled = !uiState.isLoading,
+                    keyboardOptions = KeyboardOptions(
+                        keyboardType = KeyboardType.Email,
+                        imeAction = ImeAction.Next
+                    ),
+                    keyboardActions = KeyboardActions(
+                        onNext = { focusManager.moveFocus(FocusDirection.Down) }
+                    ),
+                    isError = uiState.errorMessage?.contains("email", ignoreCase = true) == true
+                )
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                // Password field
+                OutlinedTextField(
+                    value = uiState.password,
+                    onValueChange = {
+                        onPasswordChange(it)
+                        onClearError()
+                    },
+                    label = { Text("Password") },
+                    leadingIcon = {
+                        Icon(Icons.Default.Lock, contentDescription = "Password")
+                    },
+                    trailingIcon = {
+                        IconButton(
+                            onClick = { passwordVisible = !passwordVisible },
+                            modifier = Modifier.defaultMinSize(minWidth = 48.dp, minHeight = 48.dp)
+                        ) {
+                            Icon(
+                                if (passwordVisible) Icons.Default.VisibilityOff else Icons.Default.Visibility,
+                                contentDescription = if (passwordVisible) "Hide password" else "Show password"
+                            )
+                        }
+                    },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true,
+                    enabled = !uiState.isLoading,
+                    visualTransformation = if (passwordVisible) VisualTransformation.None else PasswordVisualTransformation(),
+                    keyboardOptions = KeyboardOptions(
+                        keyboardType = KeyboardType.Password,
+                        imeAction = if (uiState.isSignUpMode) ImeAction.Next else ImeAction.Done
+                    ),
+                    keyboardActions = KeyboardActions(
+                        onNext = { focusManager.moveFocus(FocusDirection.Down) },
+                        onDone = { onSubmit() }
+                    ),
+                    isError = uiState.errorMessage?.contains("password", ignoreCase = true) == true
+                            && !uiState.errorMessage.contains("match", ignoreCase = true)
+                )
+
+                // U4: Show password requirements during sign-up
+                AnimatedVisibility(visible = uiState.isSignUpMode) {
+                    Text(
+                        text = "6+ characters",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(start = 16.dp, top = 4.dp)
                     )
-                },
-            ) {
-                Text("Grant Permissions")
-            }
-        } else {
-            Text(
-                text = "All permissions granted",
-                style = MaterialTheme.typography.bodyLarge,
-                color = MaterialTheme.colorScheme.primary,
-            )
-        }
-    }
-}
+                }
 
-@Composable
-private fun ConfirmationStep(
-    supabaseUrl: String,
-    permissionsGranted: Boolean,
-) {
-    Column(
-        modifier = Modifier.fillMaxSize(),
-        verticalArrangement = Arrangement.Center,
-        horizontalAlignment = Alignment.CenterHorizontally,
-    ) {
-        Text(
-            text = "Ready to Sync",
-            style = MaterialTheme.typography.headlineMedium,
-        )
+                // Confirm password field (sign-up only)
+                AnimatedVisibility(visible = uiState.isSignUpMode) {
+                    Column {
+                        Spacer(modifier = Modifier.height(16.dp))
+                        OutlinedTextField(
+                            value = uiState.confirmPassword,
+                            onValueChange = {
+                                onConfirmPasswordChange(it)
+                                onClearError()
+                            },
+                            label = { Text("Confirm Password") },
+                            leadingIcon = {
+                                Icon(Icons.Default.Lock, contentDescription = "Confirm password")
+                            },
+                            trailingIcon = {
+                                IconButton(
+                                    onClick = { confirmPasswordVisible = !confirmPasswordVisible },
+                                    modifier = Modifier.defaultMinSize(minWidth = 48.dp, minHeight = 48.dp)
+                                ) {
+                                    Icon(
+                                        if (confirmPasswordVisible) Icons.Default.VisibilityOff else Icons.Default.Visibility,
+                                        contentDescription = if (confirmPasswordVisible) "Hide password" else "Show password"
+                                    )
+                                }
+                            },
+                            modifier = Modifier.fillMaxWidth(),
+                            singleLine = true,
+                            enabled = !uiState.isLoading,
+                            visualTransformation = if (confirmPasswordVisible) VisualTransformation.None else PasswordVisualTransformation(),
+                            keyboardOptions = KeyboardOptions(
+                                keyboardType = KeyboardType.Password,
+                                imeAction = ImeAction.Done
+                            ),
+                            keyboardActions = KeyboardActions(
+                                onDone = { onSubmit() }
+                            ),
+                            isError = uiState.errorMessage?.contains("match", ignoreCase = true) == true
+                        )
+                    }
+                }
 
-        Spacer(modifier = Modifier.height(16.dp))
+                // Error message with LiveRegion.Polite for accessibility
+                AnimatedVisibility(visible = uiState.errorMessage != null) {
+                    Column {
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text(
+                            text = uiState.errorMessage ?: "",
+                            color = MaterialTheme.colorScheme.error,
+                            style = MaterialTheme.typography.bodySmall,
+                            modifier = Modifier.semantics {
+                                liveRegion = LiveRegionMode.Polite
+                            }
+                        )
+                    }
+                }
 
-        Text(
-            text = "Review your configuration and tap Finish to start syncing.",
-            style = MaterialTheme.typography.bodyLarge,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            textAlign = TextAlign.Center,
-        )
+                Spacer(modifier = Modifier.height(24.dp))
 
-        Spacer(modifier = Modifier.height(32.dp))
+                // Submit button with A4: screen reader announcement for loading state
+                Button(
+                    onClick = onSubmit,
+                    enabled = !uiState.isLoading,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .defaultMinSize(minHeight = 48.dp)
+                        .semantics {
+                            if (uiState.isLoading) {
+                                contentDescription = "Signing in…"
+                            }
+                        }
+                ) {
+                    if (uiState.isLoading) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(20.dp),
+                            strokeWidth = 2.dp,
+                            color = MaterialTheme.colorScheme.onPrimary
+                        )
+                    } else {
+                        Text(if (uiState.isSignUpMode) "Create Account" else "Sign In")
+                    }
+                }
 
-        ConfigRow(label = "Endpoint", value = supabaseUrl)
+                Spacer(modifier = Modifier.height(16.dp))
 
-        Spacer(modifier = Modifier.height(12.dp))
+                // V3: "or" divider with proper padding instead of literal spaces
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    HorizontalDivider(modifier = Modifier.weight(1f))
+                    Text(
+                        text = "or",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(horizontal = 16.dp)
+                    )
+                    HorizontalDivider(modifier = Modifier.weight(1f))
+                }
 
-        ConfigRow(
-            label = "Permissions",
-            value = if (permissionsGranted) "All granted" else "Not granted (sync may fail)",
-        )
+                Spacer(modifier = Modifier.height(16.dp))
 
-        Spacer(modifier = Modifier.height(12.dp))
-
-        ConfigRow(label = "Sync interval", value = "Every 15 minutes")
-    }
-}
-
-@Composable
-private fun ConfigRow(label: String, value: String) {
-    Column(modifier = Modifier.fillMaxWidth()) {
-        Text(
-            text = label,
-            style = MaterialTheme.typography.labelMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
-        Text(
-            text = value,
-            style = MaterialTheme.typography.bodyLarge,
-        )
-    }
-}
-
-@Composable
-private fun WizardNavButtons(
-    currentStep: Int,
-    totalSteps: Int,
-    canAdvance: Boolean,
-    onBack: () -> Unit,
-    onNext: () -> Unit,
-    onFinish: () -> Unit,
-) {
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.SpaceBetween,
-    ) {
-        if (currentStep > 0) {
-            OutlinedButton(onClick = onBack) {
-                Text("Back")
-            }
-        } else {
-            Spacer(modifier = Modifier.weight(1f))
-        }
-
-        if (currentStep < totalSteps - 1) {
-            Button(
-                onClick = onNext,
-                enabled = canAdvance,
-            ) {
-                Text("Next")
-            }
-        } else {
-            Button(onClick = onFinish) {
-                Text("Finish")
+                // Toggle mode link
+                TextButton(
+                    onClick = onToggleMode,
+                    enabled = !uiState.isLoading,
+                    modifier = Modifier.defaultMinSize(minHeight = 48.dp)
+                ) {
+                    Text(
+                        if (uiState.isSignUpMode) {
+                            "Already have an account? Sign in"
+                        } else {
+                            "Don't have an account? Sign up"
+                        }
+                    )
+                }
             }
         }
     }

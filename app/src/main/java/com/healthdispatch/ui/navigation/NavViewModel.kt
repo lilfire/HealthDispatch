@@ -1,0 +1,27 @@
+package com.healthdispatch.ui.navigation
+
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
+import com.healthdispatch.data.auth.AuthRepository
+import com.healthdispatch.data.auth.AuthState
+import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.launch
+import javax.inject.Inject
+
+@HiltViewModel
+class NavViewModel @Inject constructor(
+    private val authRepository: AuthRepository
+) : ViewModel() {
+
+    val authState: StateFlow<AuthState> = authRepository.authState
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), AuthState.Unknown)
+
+    init {
+        viewModelScope.launch {
+            authRepository.refreshAuthState()
+        }
+    }
+}

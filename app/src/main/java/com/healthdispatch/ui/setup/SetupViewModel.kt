@@ -1,90 +1,158 @@
 package com.healthdispatch.ui.setup
 
-import androidx.datastore.core.DataStore
-import androidx.datastore.preferences.core.Preferences
-import androidx.datastore.preferences.core.edit
-import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.healthdispatch.data.healthconnect.HealthConnectRepository
-import com.healthdispatch.sync.SyncScheduler
+import com.healthdispatch.data.auth.AuthRepository
+import com.healthdispatch.data.auth.AuthState
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 data class SetupUiState(
-    val currentStep: Int = 0,
-    val supabaseUrl: String = "",
-    val supabaseKey: String = "",
-    val permissionsGranted: Boolean = false,
-    val healthConnectAvailable: Boolean = true,
-    val isComplete: Boolean = false,
+    val email: String = "",
+    val password: String = "",
+    val confirmPassword: String = "",
+    val isSignUpMode: Boolean = false,
+    val isLoading: Boolean = false,
+    val errorMessage: String? = null
 )
 
 @HiltViewModel
 class SetupViewModel @Inject constructor(
-    private val dataStore: DataStore<Preferences>,
-    private val healthConnectRepo: HealthConnectRepository,
-    private val syncScheduler: SyncScheduler,
+    private val authRepository: AuthRepository
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(SetupUiState())
     val uiState: StateFlow<SetupUiState> = _uiState.asStateFlow()
 
-    val totalSteps = 4
+    private val _authSuccessEvent = Channel<Boolean>(Channel.BUFFERED)
+    val authSuccessEvent = _authSuccessEvent.receiveAsFlow()
 
     init {
-        checkHealthConnectAvailability()
-    }
-
-    private fun checkHealthConnectAvailability() {
         viewModelScope.launch {
-            val available = healthConnectRepo.isAvailable()
-            _uiState.update { it.copy(healthConnectAvailable = available) }
+            authRepository.refreshAuthState()
         }
-    }
-
-    fun nextStep() {
-        _uiState.update { it.copy(currentStep = (it.currentStep + 1).coerceAtMost(totalSteps - 1)) }
-    }
-
-    fun previousStep() {
-        _uiState.update { it.copy(currentStep = (it.currentStep - 1).coerceAtLeast(0)) }
-    }
-
-    fun updateSupabaseUrl(url: String) {
-        _uiState.update { it.copy(supabaseUrl = url) }
-    }
-
-    fun updateSupabaseKey(key: String) {
-        _uiState.update { it.copy(supabaseKey = key) }
-    }
-
-    fun refreshPermissions() {
         viewModelScope.launch {
-            val granted = healthConnectRepo.hasAllPermissions()
-            _uiState.update { it.copy(permissionsGranted = granted) }
-        }
-    }
-
-    fun completeSetup() {
-        viewModelScope.launch {
-            dataStore.edit { prefs ->
-                prefs[KEY_SUPABASE_URL] = _uiState.value.supabaseUrl.trim()
-                prefs[KEY_SUPABASE_KEY] = _uiState.value.supabaseKey.trim()
+            authRepository.authState.collect { state ->
+                if (state is AuthState.Authenticated) {
+                    _authSuccessEvent.send(true)
+                }
             }
-            syncScheduler.startPeriodicSync()
-            syncScheduler.startForegroundService()
-            _uiState.update { it.copy(isComplete = true) }
         }
+    }
+
+    fun updateEmail(email: String) {
+        _uiState.update { it.copy(email = email) }
+    }
+
+    fun updatePassword(password: String) {
+        _uiState.update { it.copy(password = password) }
+    }
+
+    fun updateConfirmPassword(confirmPassword: String) {
+        _uiState.update { it.copy(confirmPassword = confirmPassword) }
+    }
+
+    fun toggleMode() {
+        _uiState.update {
+            it.copy(
+                isSignUpMode = !it.isSignUpMode,
+                errorMessage = null,
+                confirmPassword = ""
+            )
+        }
+    }
+
+    fun clearError() {
+        _uiState.update { it.copy(errorMessage = null) }
+    }
+
+    fun submit() {
+        val state = _uiState.value
+        if (state.isLoading) return
+
+        val validationError = validate(state)
+        if (validationError != null) {
+            _uiState.update { it.copy(errorMessage = validationError) }
+            return
+        }
+
+        _uiState.update { it.copy(isLoading = true, errorMessage = null) }
+
+        viewModelScope.launch {
+            val result = if (state.isSignUpMode) {
+                authRepository.signUp(state.email, state.password)
+            } else {
+                authRepository.signIn(state.email, state.password)
+            }
+
+            result.onFailure { error ->
+                _uiState.update {
+                    it.copy(
+                        isLoading = false,
+                        errorMessage = error.message ?: "Authentication failed"
+                    )
+                }
+            }
+            result.onSuccess {
+                _uiState.update { it.copy(isLoading = false) }
+            }
+        }
+    }
+
+    fun handleGoogleSignIn(idToken: String) {
+        _uiState.update { it.copy(isLoading = true, errorMessage = null) }
+
+        viewModelScope.launch {
+            val result = authRepository.signInWithGoogle(idToken)
+            result.onFailure { error ->
+                _uiState.update {
+                    it.copy(
+                        isLoading = false,
+                        errorMessage = error.message ?: "Google sign-in failed"
+                    )
+                }
+            }
+            result.onSuccess {
+                _uiState.update { it.copy(isLoading = false) }
+            }
+        }
+    }
+
+    private fun validate(state: SetupUiState): String? {
+        if (state.email.isBlank()) {
+            return "Please enter your email address"
+        }
+        if (state.password.isBlank()) {
+            return "Please enter your password"
+        }
+        if (!isValidEmail(state.email)) {
+            return "Please enter a valid email address"
+        }
+        if (state.isSignUpMode) {
+            if (state.password.length < 6) {
+                return "Password must be at least 6 characters"
+            }
+            if (state.password != state.confirmPassword) {
+                return "Passwords do not match"
+            }
+        }
+        return null
+    }
+
+    private fun isValidEmail(email: String): Boolean {
+        return EMAIL_PATTERN.matches(email)
     }
 
     companion object {
-        val KEY_SUPABASE_URL = stringPreferencesKey("supabase_url")
-        val KEY_SUPABASE_KEY = stringPreferencesKey("supabase_api_key")
+        private val EMAIL_PATTERN = Regex(
+            "[a-zA-Z0-9+._%\\-]{1,256}@[a-zA-Z0-9][a-zA-Z0-9\\-]{0,64}(\\.[a-zA-Z0-9][a-zA-Z0-9\\-]{0,25})+"
+        )
     }
 }
