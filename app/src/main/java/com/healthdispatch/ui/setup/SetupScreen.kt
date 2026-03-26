@@ -2,6 +2,7 @@ package com.healthdispatch.ui.setup
 
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -12,6 +13,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
@@ -29,6 +31,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -44,8 +47,10 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.semantics.LiveRegionMode
+import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
@@ -57,7 +62,6 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 @Composable
 fun SetupScreen(
     onSetupComplete: () -> Unit,
-    onRequestGoogleSignIn: (() -> Unit)? = null,
     viewModel: SetupViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
@@ -75,7 +79,6 @@ fun SetupScreen(
         onConfirmPasswordChange = viewModel::updateConfirmPassword,
         onToggleMode = viewModel::toggleMode,
         onSubmit = viewModel::submit,
-        onGoogleSignIn = onRequestGoogleSignIn,
         onClearError = viewModel::clearError
     )
 }
@@ -88,7 +91,6 @@ fun SetupScreenContent(
     onConfirmPasswordChange: (String) -> Unit,
     onToggleMode: () -> Unit,
     onSubmit: () -> Unit,
-    onGoogleSignIn: (() -> Unit)?,
     onClearError: () -> Unit
 ) {
     val focusManager = LocalFocusManager.current
@@ -101,218 +103,239 @@ fun SetupScreenContent(
         emailFocusRequester.requestFocus()
     }
 
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .imePadding() // Item 1: imePadding for keyboard
-            .verticalScroll(rememberScrollState())
-            .padding(24.dp),
-        verticalArrangement = Arrangement.Center,
-        horizontalAlignment = Alignment.CenterHorizontally
-    ) {
-        Text(
-            text = "HealthDispatch",
-            style = MaterialTheme.typography.headlineLarge
-        )
-
-        Spacer(modifier = Modifier.height(8.dp))
-
-        Text(
-            text = if (uiState.isSignUpMode) "Create your account" else "Sign in to your account",
-            style = MaterialTheme.typography.bodyLarge,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
-        )
-
-        Spacer(modifier = Modifier.height(32.dp))
-
-        // Item 5: Google Sign-In moved to top, above email/password form
-        OutlinedButton(
-            onClick = { onGoogleSignIn?.invoke() },
-            enabled = !uiState.isLoading && onGoogleSignIn != null,
+    // V1: Wrap in Surface for proper dark mode theming
+    Surface(modifier = Modifier.fillMaxSize()) {
+        // R1: Center content with max-width constraint for tablets
+        Box(
             modifier = Modifier
-                .fillMaxWidth()
-                .defaultMinSize(minHeight = 48.dp) // Item 4: touch target
+                .fillMaxSize()
+                .imePadding(),
+            contentAlignment = Alignment.Center
         ) {
-            Text("Sign in with Google")
-        }
+            Column(
+                modifier = Modifier
+                    .widthIn(max = 400.dp)
+                    .fillMaxWidth()
+                    .verticalScroll(rememberScrollState())
+                    .padding(24.dp),
+                verticalArrangement = Arrangement.Center,
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Text(
+                    text = "HealthDispatch",
+                    style = MaterialTheme.typography.headlineLarge
+                )
 
-        Spacer(modifier = Modifier.height(16.dp))
+                Spacer(modifier = Modifier.height(8.dp))
 
-        // Item 5: "or" divider between Google and email form
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            HorizontalDivider(modifier = Modifier.weight(1f))
-            Text(
-                text = "  or  ",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-            HorizontalDivider(modifier = Modifier.weight(1f))
-        }
+                Text(
+                    text = if (uiState.isSignUpMode) "Create your account" else "Sign in to your account",
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
 
-        Spacer(modifier = Modifier.height(16.dp))
+                Spacer(modifier = Modifier.height(32.dp))
 
-        // Email field
-        OutlinedTextField(
-            value = uiState.email,
-            onValueChange = {
-                onEmailChange(it)
-                onClearError()
-            },
-            label = { Text("Email") },
-            placeholder = { Text("you@example.com") },
-            leadingIcon = {
-                Icon(Icons.Default.Email, contentDescription = "Email") // Item 2
-            },
-            modifier = Modifier
-                .fillMaxWidth()
-                .focusRequester(emailFocusRequester), // Item 6: FocusRequester
-            singleLine = true,
-            enabled = !uiState.isLoading,
-            keyboardOptions = KeyboardOptions(
-                keyboardType = KeyboardType.Email,
-                imeAction = ImeAction.Next
-            ),
-            keyboardActions = KeyboardActions(
-                onNext = { focusManager.moveFocus(FocusDirection.Down) }
-            ),
-            isError = uiState.errorMessage?.contains("email", ignoreCase = true) == true
-        )
+                // U2: Google Sign-In hidden until backend config is available
+                // TODO: Wire up Google Sign-In with Credential Manager API once
+                //  backend OAuth client ID is configured. Re-enable this button
+                //  and pass the ID token to SetupViewModel.handleGoogleSignIn().
 
-        Spacer(modifier = Modifier.height(16.dp))
-
-        // Password field
-        OutlinedTextField(
-            value = uiState.password,
-            onValueChange = {
-                onPasswordChange(it)
-                onClearError()
-            },
-            label = { Text("Password") },
-            leadingIcon = {
-                Icon(Icons.Default.Lock, contentDescription = "Password") // Item 2
-            },
-            trailingIcon = {
-                IconButton(
-                    onClick = { passwordVisible = !passwordVisible },
-                    modifier = Modifier.defaultMinSize(minWidth = 48.dp, minHeight = 48.dp) // Item 4
-                ) {
-                    Icon(
-                        if (passwordVisible) Icons.Default.VisibilityOff else Icons.Default.Visibility,
-                        contentDescription = if (passwordVisible) "Hide password" else "Show password"
-                    )
-                }
-            },
-            modifier = Modifier.fillMaxWidth(),
-            singleLine = true,
-            enabled = !uiState.isLoading,
-            visualTransformation = if (passwordVisible) VisualTransformation.None else PasswordVisualTransformation(),
-            keyboardOptions = KeyboardOptions(
-                keyboardType = KeyboardType.Password,
-                imeAction = if (uiState.isSignUpMode) ImeAction.Next else ImeAction.Done
-            ),
-            keyboardActions = KeyboardActions(
-                onNext = { focusManager.moveFocus(FocusDirection.Down) },
-                onDone = { onSubmit() }
-            ),
-            isError = uiState.errorMessage?.contains("password", ignoreCase = true) == true
-                    && !uiState.errorMessage.contains("match", ignoreCase = true)
-        )
-
-        // Confirm password field (sign-up only)
-        AnimatedVisibility(visible = uiState.isSignUpMode) {
-            Column {
-                Spacer(modifier = Modifier.height(16.dp))
+                // Email field
                 OutlinedTextField(
-                    value = uiState.confirmPassword,
+                    value = uiState.email,
                     onValueChange = {
-                        onConfirmPasswordChange(it)
+                        onEmailChange(it)
                         onClearError()
                     },
-                    label = { Text("Confirm Password") },
+                    label = { Text("Email") },
+                    placeholder = { Text("you@example.com") },
                     leadingIcon = {
-                        Icon(Icons.Default.Lock, contentDescription = "Confirm password") // Item 2
+                        Icon(Icons.Default.Email, contentDescription = "Email")
+                    },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .focusRequester(emailFocusRequester),
+                    singleLine = true,
+                    enabled = !uiState.isLoading,
+                    keyboardOptions = KeyboardOptions(
+                        keyboardType = KeyboardType.Email,
+                        imeAction = ImeAction.Next
+                    ),
+                    keyboardActions = KeyboardActions(
+                        onNext = { focusManager.moveFocus(FocusDirection.Down) }
+                    ),
+                    isError = uiState.errorMessage?.contains("email", ignoreCase = true) == true
+                )
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                // Password field
+                OutlinedTextField(
+                    value = uiState.password,
+                    onValueChange = {
+                        onPasswordChange(it)
+                        onClearError()
+                    },
+                    label = { Text("Password") },
+                    leadingIcon = {
+                        Icon(Icons.Default.Lock, contentDescription = "Password")
                     },
                     trailingIcon = {
                         IconButton(
-                            onClick = { confirmPasswordVisible = !confirmPasswordVisible },
-                            modifier = Modifier.defaultMinSize(minWidth = 48.dp, minHeight = 48.dp) // Item 4
+                            onClick = { passwordVisible = !passwordVisible },
+                            modifier = Modifier.defaultMinSize(minWidth = 48.dp, minHeight = 48.dp)
                         ) {
                             Icon(
-                                if (confirmPasswordVisible) Icons.Default.VisibilityOff else Icons.Default.Visibility,
-                                contentDescription = if (confirmPasswordVisible) "Hide password" else "Show password"
+                                if (passwordVisible) Icons.Default.VisibilityOff else Icons.Default.Visibility,
+                                contentDescription = if (passwordVisible) "Hide password" else "Show password"
                             )
                         }
                     },
                     modifier = Modifier.fillMaxWidth(),
                     singleLine = true,
                     enabled = !uiState.isLoading,
-                    visualTransformation = if (confirmPasswordVisible) VisualTransformation.None else PasswordVisualTransformation(),
+                    visualTransformation = if (passwordVisible) VisualTransformation.None else PasswordVisualTransformation(),
                     keyboardOptions = KeyboardOptions(
                         keyboardType = KeyboardType.Password,
-                        imeAction = ImeAction.Done
+                        imeAction = if (uiState.isSignUpMode) ImeAction.Next else ImeAction.Done
                     ),
                     keyboardActions = KeyboardActions(
+                        onNext = { focusManager.moveFocus(FocusDirection.Down) },
                         onDone = { onSubmit() }
                     ),
-                    isError = uiState.errorMessage?.contains("match", ignoreCase = true) == true
+                    isError = uiState.errorMessage?.contains("password", ignoreCase = true) == true
+                            && !uiState.errorMessage.contains("match", ignoreCase = true)
                 )
-            }
-        }
 
-        // Item 3: Error message with LiveRegion.Polite for accessibility
-        AnimatedVisibility(visible = uiState.errorMessage != null) {
-            Column {
-                Spacer(modifier = Modifier.height(8.dp))
-                Text(
-                    text = uiState.errorMessage ?: "",
-                    color = MaterialTheme.colorScheme.error,
-                    style = MaterialTheme.typography.bodySmall,
-                    modifier = Modifier.semantics {
-                        liveRegion = LiveRegionMode.Polite
-                    }
-                )
-            }
-        }
-
-        Spacer(modifier = Modifier.height(24.dp))
-
-        // Submit button
-        Button(
-            onClick = onSubmit,
-            enabled = !uiState.isLoading,
-            modifier = Modifier
-                .fillMaxWidth()
-                .defaultMinSize(minHeight = 48.dp) // Item 4: touch target
-        ) {
-            if (uiState.isLoading) {
-                CircularProgressIndicator(
-                    modifier = Modifier.size(20.dp),
-                    strokeWidth = 2.dp,
-                    color = MaterialTheme.colorScheme.onPrimary
-                )
-            } else {
-                Text(if (uiState.isSignUpMode) "Create Account" else "Sign In")
-            }
-        }
-
-        Spacer(modifier = Modifier.height(24.dp))
-
-        // Toggle mode link
-        TextButton(
-            onClick = onToggleMode,
-            enabled = !uiState.isLoading,
-            modifier = Modifier.defaultMinSize(minHeight = 48.dp) // Item 4: touch target
-        ) {
-            Text(
-                if (uiState.isSignUpMode) {
-                    "Already have an account? Sign in"
-                } else {
-                    "Don't have an account? Sign up"
+                // U4: Show password requirements during sign-up
+                AnimatedVisibility(visible = uiState.isSignUpMode) {
+                    Text(
+                        text = "6+ characters",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(start = 16.dp, top = 4.dp)
+                    )
                 }
-            )
+
+                // Confirm password field (sign-up only)
+                AnimatedVisibility(visible = uiState.isSignUpMode) {
+                    Column {
+                        Spacer(modifier = Modifier.height(16.dp))
+                        OutlinedTextField(
+                            value = uiState.confirmPassword,
+                            onValueChange = {
+                                onConfirmPasswordChange(it)
+                                onClearError()
+                            },
+                            label = { Text("Confirm Password") },
+                            leadingIcon = {
+                                Icon(Icons.Default.Lock, contentDescription = "Confirm password")
+                            },
+                            trailingIcon = {
+                                IconButton(
+                                    onClick = { confirmPasswordVisible = !confirmPasswordVisible },
+                                    modifier = Modifier.defaultMinSize(minWidth = 48.dp, minHeight = 48.dp)
+                                ) {
+                                    Icon(
+                                        if (confirmPasswordVisible) Icons.Default.VisibilityOff else Icons.Default.Visibility,
+                                        contentDescription = if (confirmPasswordVisible) "Hide password" else "Show password"
+                                    )
+                                }
+                            },
+                            modifier = Modifier.fillMaxWidth(),
+                            singleLine = true,
+                            enabled = !uiState.isLoading,
+                            visualTransformation = if (confirmPasswordVisible) VisualTransformation.None else PasswordVisualTransformation(),
+                            keyboardOptions = KeyboardOptions(
+                                keyboardType = KeyboardType.Password,
+                                imeAction = ImeAction.Done
+                            ),
+                            keyboardActions = KeyboardActions(
+                                onDone = { onSubmit() }
+                            ),
+                            isError = uiState.errorMessage?.contains("match", ignoreCase = true) == true
+                        )
+                    }
+                }
+
+                // Error message with LiveRegion.Polite for accessibility
+                AnimatedVisibility(visible = uiState.errorMessage != null) {
+                    Column {
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text(
+                            text = uiState.errorMessage ?: "",
+                            color = MaterialTheme.colorScheme.error,
+                            style = MaterialTheme.typography.bodySmall,
+                            modifier = Modifier.semantics {
+                                liveRegion = LiveRegionMode.Polite
+                            }
+                        )
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(24.dp))
+
+                // Submit button with A4: screen reader announcement for loading state
+                Button(
+                    onClick = onSubmit,
+                    enabled = !uiState.isLoading,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .defaultMinSize(minHeight = 48.dp)
+                        .semantics {
+                            if (uiState.isLoading) {
+                                contentDescription = "Signing in…"
+                            }
+                        }
+                ) {
+                    if (uiState.isLoading) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(20.dp),
+                            strokeWidth = 2.dp,
+                            color = MaterialTheme.colorScheme.onPrimary
+                        )
+                    } else {
+                        Text(if (uiState.isSignUpMode) "Create Account" else "Sign In")
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                // V3: "or" divider with proper padding instead of literal spaces
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    HorizontalDivider(modifier = Modifier.weight(1f))
+                    Text(
+                        text = "or",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(horizontal = 16.dp)
+                    )
+                    HorizontalDivider(modifier = Modifier.weight(1f))
+                }
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                // Toggle mode link
+                TextButton(
+                    onClick = onToggleMode,
+                    enabled = !uiState.isLoading,
+                    modifier = Modifier.defaultMinSize(minHeight = 48.dp)
+                ) {
+                    Text(
+                        if (uiState.isSignUpMode) {
+                            "Already have an account? Sign in"
+                        } else {
+                            "Don't have an account? Sign up"
+                        }
+                    )
+                }
+            }
         }
     }
 }

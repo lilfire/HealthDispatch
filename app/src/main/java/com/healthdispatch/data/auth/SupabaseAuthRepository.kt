@@ -147,9 +147,13 @@ class SupabaseAuthRepository @Inject constructor(
                 Result.failure(Exception(mapErrorMessage(rawMsg)))
             }
         } catch (e: java.net.UnknownHostException) {
-            Result.failure(Exception("Unable to connect. Please check your internet connection"))
+            Result.failure(Exception("No internet connection. Please check your network and try again"))
         } catch (e: java.net.ConnectException) {
-            Result.failure(Exception("Unable to connect. Please check your internet connection"))
+            Result.failure(Exception("No internet connection. Please check your network and try again"))
+        } catch (e: java.net.SocketTimeoutException) {
+            Result.failure(Exception("Connection timed out. Please check your network and try again"))
+        } catch (e: java.io.IOException) {
+            Result.failure(Exception("No internet connection. Please check your network and try again"))
         } catch (e: Exception) {
             Result.failure(e)
         }

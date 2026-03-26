@@ -234,7 +234,52 @@ class SupabaseAuthRepositoryTest {
         val repo = SupabaseAuthRepository(httpClient, dataStore, json)
         val result = repo.signIn("user@example.com", "password123")
         assertTrue(result.isFailure)
-        assertEquals("Unable to connect. Please check your internet connection", result.exceptionOrNull()?.message)
+        assertEquals("No internet connection. Please check your network and try again", result.exceptionOrNull()?.message)
+    }
+
+    @Test
+    fun `signIn fails with connect exception maps to friendly message`() = testScope.runTest {
+        seedConfig()
+        val failingEngine = MockEngine { _ ->
+            throw java.net.ConnectException("Connection refused")
+        }
+        val httpClient = HttpClient(failingEngine) {
+            install(ContentNegotiation) { json(json) }
+        }
+        val repo = SupabaseAuthRepository(httpClient, dataStore, json)
+        val result = repo.signIn("user@example.com", "password123")
+        assertTrue(result.isFailure)
+        assertEquals("No internet connection. Please check your network and try again", result.exceptionOrNull()?.message)
+    }
+
+    @Test
+    fun `signIn fails with socket timeout maps to friendly message`() = testScope.runTest {
+        seedConfig()
+        val failingEngine = MockEngine { _ ->
+            throw java.net.SocketTimeoutException("Read timed out")
+        }
+        val httpClient = HttpClient(failingEngine) {
+            install(ContentNegotiation) { json(json) }
+        }
+        val repo = SupabaseAuthRepository(httpClient, dataStore, json)
+        val result = repo.signIn("user@example.com", "password123")
+        assertTrue(result.isFailure)
+        assertEquals("Connection timed out. Please check your network and try again", result.exceptionOrNull()?.message)
+    }
+
+    @Test
+    fun `signIn fails with io exception maps to friendly message`() = testScope.runTest {
+        seedConfig()
+        val failingEngine = MockEngine { _ ->
+            throw java.io.IOException("Stream reset")
+        }
+        val httpClient = HttpClient(failingEngine) {
+            install(ContentNegotiation) { json(json) }
+        }
+        val repo = SupabaseAuthRepository(httpClient, dataStore, json)
+        val result = repo.signIn("user@example.com", "password123")
+        assertTrue(result.isFailure)
+        assertEquals("No internet connection. Please check your network and try again", result.exceptionOrNull()?.message)
     }
 
     @Test

@@ -88,7 +88,7 @@ fun SettingsScreen(
                 } else {
                     Icon(
                         Icons.AutoMirrored.Filled.Logout,
-                        contentDescription = null,
+                        contentDescription = "Sign out",
                         modifier = Modifier.size(18.dp)
                     )
                     Spacer(modifier = Modifier.size(8.dp))
