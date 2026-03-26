@@ -37,6 +37,18 @@ data class AuthErrorResponse(
     val msg: String = ""
 )
 
+@Serializable
+data class AuthCredentialsRequest(
+    val email: String,
+    val password: String
+)
+
+@Serializable
+data class AuthGoogleRequest(
+    val provider: String,
+    val id_token: String
+)
+
 @Singleton
 class SupabaseAuthRepository @Inject constructor(
     private val httpClient: HttpClient,
@@ -61,21 +73,21 @@ class SupabaseAuthRepository @Inject constructor(
     override suspend fun signIn(email: String, password: String): Result<Unit> {
         return performAuth(
             endpoint = "/auth/v1/token?grant_type=password",
-            body = """{"email":"$email","password":"$password"}"""
+            body = json.encodeToString(AuthCredentialsRequest.serializer(), AuthCredentialsRequest(email, password))
         )
     }
 
     override suspend fun signUp(email: String, password: String): Result<Unit> {
         return performAuth(
             endpoint = "/auth/v1/signup",
-            body = """{"email":"$email","password":"$password"}"""
+            body = json.encodeToString(AuthCredentialsRequest.serializer(), AuthCredentialsRequest(email, password))
         )
     }
 
     override suspend fun signInWithGoogle(idToken: String): Result<Unit> {
         return performAuth(
             endpoint = "/auth/v1/token?grant_type=id_token",
-            body = """{"provider":"google","id_token":"$idToken"}"""
+            body = json.encodeToString(AuthGoogleRequest.serializer(), AuthGoogleRequest(provider = "google", id_token = idToken))
         )
     }
 

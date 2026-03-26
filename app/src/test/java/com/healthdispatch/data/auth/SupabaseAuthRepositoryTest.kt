@@ -8,6 +8,7 @@ import app.cash.turbine.test
 import io.ktor.client.HttpClient
 import io.ktor.client.engine.mock.MockEngine
 import io.ktor.client.engine.mock.respond
+import io.ktor.client.engine.mock.toByteArray
 import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
 import io.ktor.http.ContentType
 import io.ktor.http.HttpHeaders
@@ -19,6 +20,8 @@ import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.runTest
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.jsonPrimitive
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Before
@@ -280,6 +283,81 @@ class SupabaseAuthRepositoryTest {
         val result = repo.signIn("user@example.com", "password123")
         assertTrue(result.isFailure)
         assertEquals("No internet connection. Please check your network and try again", result.exceptionOrNull()?.message)
+    }
+
+    private fun createRepositoryCapturingBody(
+        capturedBody: MutableList<String>,
+        statusCode: HttpStatusCode = HttpStatusCode.OK,
+        responseBody: String = """{"access_token":"test-token","refresh_token":"test-refresh","token_type":"bearer","expires_in":3600}"""
+    ): SupabaseAuthRepository {
+        val mockEngine = MockEngine { request ->
+            capturedBody.add(request.body.toByteArray().decodeToString())
+            respond(
+                content = responseBody,
+                status = statusCode,
+                headers = headersOf(HttpHeaders.ContentType, ContentType.Application.Json.toString())
+            )
+        }
+        val httpClient = HttpClient(mockEngine) {
+            install(ContentNegotiation) { json(json) }
+        }
+        return SupabaseAuthRepository(httpClient, dataStore, json)
+    }
+
+    @Test
+    fun `signIn with password containing double quotes produces valid JSON`() = testScope.runTest {
+        seedConfig()
+        val capturedBody = mutableListOf<String>()
+        val repo = createRepositoryCapturingBody(capturedBody)
+        val result = repo.signIn("user@example.com", """pass"word""")
+        assertTrue(result.isSuccess)
+        val parsed = json.decodeFromString<JsonObject>(capturedBody.first())
+        assertEquals("""pass"word""", parsed["password"]?.jsonPrimitive?.content)
+    }
+
+    @Test
+    fun `signIn with password containing backslash produces valid JSON`() = testScope.runTest {
+        seedConfig()
+        val capturedBody = mutableListOf<String>()
+        val repo = createRepositoryCapturingBody(capturedBody)
+        val result = repo.signIn("user@example.com", """pass\word""")
+        assertTrue(result.isSuccess)
+        val parsed = json.decodeFromString<JsonObject>(capturedBody.first())
+        assertEquals("""pass\word""", parsed["password"]?.jsonPrimitive?.content)
+    }
+
+    @Test
+    fun `signIn with password containing closing brace produces valid JSON`() = testScope.runTest {
+        seedConfig()
+        val capturedBody = mutableListOf<String>()
+        val repo = createRepositoryCapturingBody(capturedBody)
+        val result = repo.signIn("user@example.com", "pass}word")
+        assertTrue(result.isSuccess)
+        val parsed = json.decodeFromString<JsonObject>(capturedBody.first())
+        assertEquals("pass}word", parsed["password"]?.jsonPrimitive?.content)
+    }
+
+    @Test
+    fun `signUp with special characters in email and password produces valid JSON`() = testScope.runTest {
+        seedConfig()
+        val capturedBody = mutableListOf<String>()
+        val repo = createRepositoryCapturingBody(capturedBody)
+        val result = repo.signUp("user+test@example.com", """p@ss"w\rd}""")
+        assertTrue(result.isSuccess)
+        val parsed = json.decodeFromString<JsonObject>(capturedBody.first())
+        assertEquals("user+test@example.com", parsed["email"]?.jsonPrimitive?.content)
+        assertEquals("""p@ss"w\rd}""", parsed["password"]?.jsonPrimitive?.content)
+    }
+
+    @Test
+    fun `signInWithGoogle with special characters in token produces valid JSON`() = testScope.runTest {
+        seedConfig()
+        val capturedBody = mutableListOf<String>()
+        val repo = createRepositoryCapturingBody(capturedBody)
+        val result = repo.signInWithGoogle("""token"with\special}chars""")
+        assertTrue(result.isSuccess)
+        val parsed = json.decodeFromString<JsonObject>(capturedBody.first())
+        assertEquals("""token"with\special}chars""", parsed["id_token"]?.jsonPrimitive?.content)
     }
 
     @Test
