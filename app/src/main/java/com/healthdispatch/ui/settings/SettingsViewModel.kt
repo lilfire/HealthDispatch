@@ -2,54 +2,52 @@ package com.healthdispatch.ui.settings
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.healthdispatch.data.cloud.CloudConfig
-import com.healthdispatch.data.cloud.CloudConfigRepository
+import com.healthdispatch.data.auth.AuthRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
-import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.map
-import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.receiveAsFlow
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 data class SettingsUiState(
-    val supabaseUrl: String = "",
-    val apiKey: String = "",
-    val isConfigured: Boolean = false
+    val isSigningOut: Boolean = false,
+    val errorMessage: String? = null
 )
 
 @HiltViewModel
 class SettingsViewModel @Inject constructor(
-    private val cloudConfigRepository: CloudConfigRepository
+    private val authRepository: AuthRepository
 ) : ViewModel() {
 
-    val uiState: StateFlow<SettingsUiState> = cloudConfigRepository.cloudConfigFlow
-        .map { config ->
-            SettingsUiState(
-                supabaseUrl = config.url,
-                apiKey = config.apiKey,
-                isConfigured = config.url.isNotBlank() && config.apiKey.isNotBlank()
-            )
-        }
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), SettingsUiState())
+    private val _uiState = MutableStateFlow(SettingsUiState())
+    val uiState: StateFlow<SettingsUiState> = _uiState.asStateFlow()
 
-    fun saveUrl(url: String) {
-        viewModelScope.launch {
-            val current = cloudConfigRepository.currentConfig()
-            cloudConfigRepository.saveCloudConfig(url, current.apiKey)
-        }
-    }
+    private val _signOutEvent = Channel<Boolean>(Channel.BUFFERED)
+    val signOutEvent = _signOutEvent.receiveAsFlow()
 
-    fun saveApiKey(apiKey: String) {
-        viewModelScope.launch {
-            val current = cloudConfigRepository.currentConfig()
-            cloudConfigRepository.saveCloudConfig(current.url, apiKey)
-        }
-    }
+    fun signOut() {
+        if (_uiState.value.isSigningOut) return
 
-    fun resetOnboarding() {
+        _uiState.update { it.copy(isSigningOut = true, errorMessage = null) }
+
         viewModelScope.launch {
-            cloudConfigRepository.resetOnboarding()
+            val result = authRepository.signOut()
+            result.onSuccess {
+                _signOutEvent.send(true)
+            }
+            result.onFailure { error ->
+                _uiState.update {
+                    it.copy(
+                        isSigningOut = false,
+                        errorMessage = error.message ?: "Sign out failed"
+                    )
+                }
+            }
+            _uiState.update { it.copy(isSigningOut = false) }
         }
     }
 }
