@@ -6,6 +6,8 @@ import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.preferencesDataStore
 import androidx.room.Room
 import com.healthdispatch.BuildConfig
+import com.healthdispatch.data.auth.AuthClient
+import com.healthdispatch.data.auth.SupabaseAuthClient
 import com.healthdispatch.data.cloud.AuthSessionProvider
 import com.healthdispatch.data.cloud.PostgrestClientWrapper
 import com.healthdispatch.data.cloud.SupabaseAuthSessionProvider
@@ -77,4 +79,8 @@ abstract class AppBindingsModule {
     @Binds
     @Singleton
     abstract fun bindPostgrestClientWrapper(impl: SupabasePostgrestClientWrapper): PostgrestClientWrapper
+
+    @Binds
+    @Singleton
+    abstract fun bindAuthClient(impl: SupabaseAuthClient): AuthClient
 }

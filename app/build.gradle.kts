@@ -7,6 +7,16 @@ plugins {
     alias(libs.plugins.ksp)
 }
 
+val localProperties = java.util.Properties().apply {
+    val localPropsFile = rootProject.file("local.properties")
+    if (localPropsFile.exists()) {
+        localPropsFile.inputStream().use { load(it) }
+    }
+}
+
+val supabaseUrl: String = localProperties.getProperty("SUPABASE_URL", "https://your-project.supabase.co")
+val supabaseAnonKey: String = localProperties.getProperty("SUPABASE_ANON_KEY", "your-anon-key")
+
 android {
     namespace = "com.healthdispatch"
     compileSdk = 35
@@ -20,8 +30,8 @@ android {
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
-        buildConfigField("String", "SUPABASE_URL", "\"https://your-project.supabase.co\"")
-        buildConfigField("String", "SUPABASE_ANON_KEY", "\"your-anon-key\"")
+        buildConfigField("String", "SUPABASE_URL", "\"$supabaseUrl\"")
+        buildConfigField("String", "SUPABASE_ANON_KEY", "\"$supabaseAnonKey\"")
     }
 
     buildTypes {
@@ -112,4 +122,19 @@ dependencies {
     androidTestImplementation(libs.espresso.core)
     androidTestImplementation(composeBom)
     androidTestImplementation(libs.compose.ui.test)
+}
+
+tasks.register("validateSupabaseConfig") {
+    doLast {
+        require(supabaseUrl != "https://your-project.supabase.co") {
+            "SUPABASE_URL is not configured. Set SUPABASE_URL in local.properties (e.g. SUPABASE_URL=https://abc123.supabase.co)"
+        }
+        require(supabaseAnonKey != "your-anon-key") {
+            "SUPABASE_ANON_KEY is not configured. Set SUPABASE_ANON_KEY in local.properties"
+        }
+    }
+}
+
+tasks.matching { it.name.startsWith("assemble") || it.name.startsWith("install") }.configureEach {
+    dependsOn("validateSupabaseConfig")
 }
