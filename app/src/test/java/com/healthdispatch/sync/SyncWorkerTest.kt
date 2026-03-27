@@ -58,7 +58,7 @@ class SyncWorkerTest {
 
         syncLogic.syncPendingRecords()
 
-        coVerify { mockDao.updateStatus(1L, SyncStatus.SYNCED) }
+        coVerify { mockDao.updateStatus(1L, SyncStatus.SYNCED, any(), null) }
     }
 
     @Test
