@@ -105,6 +105,9 @@ dependencies {
     // WorkManager
     implementation(libs.work.runtime)
 
+    // Serialization
+    implementation(libs.serialization.json)
+
     // Firebase
     implementation(platform(libs.firebase.bom))
     implementation(libs.firebase.auth)

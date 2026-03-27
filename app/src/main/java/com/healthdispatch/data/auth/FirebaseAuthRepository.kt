@@ -74,9 +74,9 @@ class FirebaseAuthRepository @Inject constructor(
 
     override suspend fun signInWithApple(idToken: String): Result<Unit> {
         return try {
-            val provider = OAuthProvider.newBuilder("apple.com")
-            val credential = provider.build().credential
-                ?: return Result.failure(Exception("Failed to build Apple credential"))
+            val credential = OAuthProvider.newCredentialBuilder("apple.com")
+                .setIdToken(idToken)
+                .build()
             firebaseAuth.signInWithCredential(credential).await()
             _authState.value = AuthState.Authenticated
             Result.success(Unit)
