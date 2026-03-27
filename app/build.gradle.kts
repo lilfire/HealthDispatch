@@ -1,5 +1,3 @@
-import java.util.Properties
-
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
@@ -7,24 +5,8 @@ plugins {
     alias(libs.plugins.kotlin.serialization)
     alias(libs.plugins.hilt)
     alias(libs.plugins.ksp)
+    alias(libs.plugins.google.services)
 }
-
-val localProperties = Properties().apply {
-    val localPropsFile = rootProject.file("local.properties")
-    if (localPropsFile.exists()) {
-        localPropsFile.inputStream().use { load(it) }
-    }
-}
-
-val supabaseUrl: String = localProperties.getProperty("SUPABASE_URL")
-    ?: System.getenv("SUPABASE_URL")
-    ?: "https://your-project.supabase.co"
-val supabaseAnonKey: String = localProperties.getProperty("SUPABASE_ANON_KEY")
-    ?: System.getenv("SUPABASE_ANON_KEY")
-    ?: "your-anon-key"
-val googleClientId: String = localProperties.getProperty("GOOGLE_CLIENT_ID")
-    ?: System.getenv("GOOGLE_CLIENT_ID")
-    ?: ""
 
 android {
     namespace = "com.healthdispatch"
@@ -39,9 +21,7 @@ android {
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
-        buildConfigField("String", "SUPABASE_URL", "\"$supabaseUrl\"")
-        buildConfigField("String", "SUPABASE_ANON_KEY", "\"$supabaseAnonKey\"")
-        buildConfigField("String", "GOOGLE_CLIENT_ID", "\"$googleClientId\"")
+        buildConfigField("String", "GOOGLE_CLIENT_ID", "\"${project.findProperty("GOOGLE_CLIENT_ID") ?: ""}\"")
     }
 
     signingConfigs {
@@ -84,11 +64,6 @@ android {
         buildConfig = true
     }
 
-    testOptions {
-        unitTests {
-            isIncludeAndroidResources = true
-        }
-    }
 }
 
 dependencies {
@@ -112,11 +87,6 @@ dependencies {
     implementation(libs.core.ktx)
     implementation(libs.datastore.preferences)
 
-    // Credentials / Google Sign-In
-    implementation(libs.credentials)
-    implementation(libs.credentials.play.services)
-    implementation(libs.googleid)
-
     // Health Connect
     implementation(libs.health.connect)
 
@@ -135,50 +105,28 @@ dependencies {
     // WorkManager
     implementation(libs.work.runtime)
 
-    // Supabase
-    implementation(platform(libs.supabase.bom))
-    implementation(libs.supabase.gotrue)
-    implementation(libs.supabase.postgrest)
+    // Firebase
+    implementation(platform(libs.firebase.bom))
+    implementation(libs.firebase.auth)
+    implementation(libs.firebase.firestore)
 
-    // Ktor (required by Supabase SDK)
-    implementation(libs.ktor.client.core)
-    implementation(libs.ktor.client.okhttp)
-    implementation(libs.ktor.client.content.negotiation)
-    implementation(libs.ktor.serialization.json)
+    // Credential Manager (Google Sign-In)
+    implementation(libs.credentials)
+    implementation(libs.credentials.play.services)
+    implementation(libs.googleid)
 
     // Coroutines
     implementation(libs.coroutines.core)
     implementation(libs.coroutines.android)
+    implementation(libs.coroutines.play.services)
 
     // Testing
     testImplementation(libs.junit)
     testImplementation(libs.mockk)
     testImplementation(libs.coroutines.test)
     testImplementation(libs.turbine)
-    testImplementation(libs.ktor.client.mock)
-    testImplementation("org.robolectric:robolectric:4.14.1")
-    testImplementation("androidx.test:core:1.6.1")
-    testImplementation("androidx.test.ext:junit:1.2.1")
-    testImplementation(composeBom)
-    testImplementation(libs.compose.ui.test)
-    debugImplementation("androidx.compose.ui:ui-test-manifest")
     androidTestImplementation(libs.test.ext)
     androidTestImplementation(libs.espresso.core)
     androidTestImplementation(composeBom)
     androidTestImplementation(libs.compose.ui.test)
-}
-
-tasks.register("validateSupabaseConfig") {
-    doLast {
-        if (supabaseUrl == "https://your-project.supabase.co") {
-            logger.warn("WARNING: SUPABASE_URL is not configured. Set SUPABASE_URL in local.properties or as an environment variable.")
-        }
-        if (supabaseAnonKey == "your-anon-key") {
-            logger.warn("WARNING: SUPABASE_ANON_KEY is not configured. Set SUPABASE_ANON_KEY in local.properties or as an environment variable.")
-        }
-    }
-}
-
-tasks.matching { it.name.startsWith("assemble") || it.name.startsWith("install") }.configureEach {
-    dependsOn("validateSupabaseConfig")
 }
