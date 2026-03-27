@@ -45,7 +45,7 @@ data class AuthCredentialsRequest(
 )
 
 @Serializable
-data class AuthGoogleRequest(
+data class AuthOAuthRequest(
     val provider: String,
     val id_token: String
 )
@@ -90,7 +90,14 @@ class SupabaseAuthRepository @Inject constructor(
     override suspend fun signInWithGoogle(idToken: String): Result<Unit> {
         return performAuth(
             endpoint = "/auth/v1/token?grant_type=id_token",
-            body = json.encodeToString(AuthGoogleRequest.serializer(), AuthGoogleRequest(provider = "google", id_token = idToken))
+            body = json.encodeToString(AuthOAuthRequest.serializer(), AuthOAuthRequest(provider = "google", id_token = idToken))
+        )
+    }
+
+    override suspend fun signInWithApple(idToken: String): Result<Unit> {
+        return performAuth(
+            endpoint = "/auth/v1/token?grant_type=id_token",
+            body = json.encodeToString(AuthOAuthRequest.serializer(), AuthOAuthRequest(provider = "apple", id_token = idToken))
         )
     }
 

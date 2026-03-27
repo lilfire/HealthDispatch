@@ -89,7 +89,8 @@ fun SetupScreen(
         onSubmit = viewModel::submit,
         onClearError = viewModel::clearError,
         onGoogleSignIn = viewModel::handleGoogleSignIn,
-        googleClientId = viewModel.googleClientId
+        googleClientId = viewModel.googleClientId,
+        onAppleSignIn = viewModel::handleAppleSignIn
     )
 }
 
@@ -103,7 +104,8 @@ fun SetupScreenContent(
     onSubmit: () -> Unit,
     onClearError: () -> Unit,
     onGoogleSignIn: (String) -> Unit = {},
-    googleClientId: String = ""
+    googleClientId: String = "",
+    onAppleSignIn: (String) -> Unit = {}
 ) {
     val focusManager = LocalFocusManager.current
     val emailFocusRequester = remember { FocusRequester() }
@@ -366,6 +368,25 @@ fun SetupScreenContent(
                         modifier = Modifier.padding(horizontal = 16.dp)
                     )
                     HorizontalDivider(modifier = Modifier.weight(1f))
+                }
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                // Apple Sign-In button
+                OutlinedButton(
+                    onClick = {
+                        // TODO: Launch Apple OAuth flow via Credential Manager / browser
+                        // and pass the returned id_token to onAppleSignIn()
+                    },
+                    enabled = !uiState.isLoading,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .defaultMinSize(minHeight = 48.dp)
+                ) {
+                    Text(
+                        text = "Sign in with Apple",
+                        fontWeight = FontWeight.Medium
+                    )
                 }
 
                 Spacer(modifier = Modifier.height(16.dp))

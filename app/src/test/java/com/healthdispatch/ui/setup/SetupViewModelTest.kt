@@ -239,6 +239,41 @@ class SetupViewModelTest {
     }
 
     @Test
+    fun `handleAppleSignIn calls repository with token`() = runTest {
+        coEvery { authRepository.signInWithApple(any()) } returns Result.success(Unit)
+        val vm = createViewModel()
+        vm.handleAppleSignIn("apple-id-token-123")
+        advanceUntilIdle()
+        coVerify { authRepository.signInWithApple("apple-id-token-123") }
+    }
+
+    @Test
+    fun `handleAppleSignIn failure shows error`() = runTest {
+        coEvery { authRepository.signInWithApple(any()) } returns
+            Result.failure(Exception("Apple sign-in failed"))
+        val vm = createViewModel()
+        vm.handleAppleSignIn("bad-token")
+        advanceUntilIdle()
+        assertEquals("Apple sign-in failed", vm.uiState.value.errorMessage)
+        assertFalse(vm.uiState.value.isLoading)
+    }
+
+    @Test
+    fun `handleAppleSignIn sets loading state`() = runTest {
+        coEvery { authRepository.signInWithApple(any()) } returns Result.success(Unit)
+        val vm = createViewModel()
+        vm.uiState.test {
+            awaitItem() // initial state
+            vm.handleAppleSignIn("apple-id-token")
+            val loadingState = awaitItem()
+            assertTrue(loadingState.isLoading)
+            assertNull(loadingState.errorMessage)
+            advanceUntilIdle()
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test
     fun `clearError removes error message`() = runTest {
         val vm = createViewModel()
         vm.submit() // triggers validation error
