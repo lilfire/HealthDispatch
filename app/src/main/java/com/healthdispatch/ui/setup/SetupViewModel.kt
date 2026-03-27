@@ -125,6 +125,25 @@ class SetupViewModel @Inject constructor(
         }
     }
 
+    fun handleAppleSignIn(idToken: String) {
+        _uiState.update { it.copy(isLoading = true, errorMessage = null) }
+
+        viewModelScope.launch {
+            val result = authRepository.signInWithApple(idToken)
+            result.onFailure { error ->
+                _uiState.update {
+                    it.copy(
+                        isLoading = false,
+                        errorMessage = error.message ?: "Apple sign-in failed"
+                    )
+                }
+            }
+            result.onSuccess {
+                _uiState.update { it.copy(isLoading = false) }
+            }
+        }
+    }
+
     private fun validate(state: SetupUiState): String? {
         if (state.email.isBlank()) {
             return "Please enter your email address"

@@ -350,6 +350,58 @@ class SupabaseAuthRepositoryTest {
     }
 
     @Test
+    fun `signInWithApple succeeds`() = testScope.runTest {
+        seedConfig()
+        val repo = createRepository()
+        val result = repo.signInWithApple("apple-id-token")
+        assertTrue(result.isSuccess)
+        assertEquals(AuthState.Authenticated, repo.authState.value)
+    }
+
+    @Test
+    fun `signInWithApple sends correct provider and token`() = testScope.runTest {
+        seedConfig()
+        val capturedBody = mutableListOf<String>()
+        val repo = createRepositoryCapturingBody(capturedBody)
+        val result = repo.signInWithApple("apple-id-token-123")
+        assertTrue(result.isSuccess)
+        val parsed = json.decodeFromString<JsonObject>(capturedBody.first())
+        assertEquals("apple", parsed["provider"]?.jsonPrimitive?.content)
+        assertEquals("apple-id-token-123", parsed["id_token"]?.jsonPrimitive?.content)
+    }
+
+    @Test
+    fun `signInWithApple fails with missing config`() = testScope.runTest {
+        val repo = createRepository()
+        val result = repo.signInWithApple("apple-id-token")
+        assertTrue(result.isFailure)
+        assertEquals("Supabase URL and API Key must be configured", result.exceptionOrNull()?.message)
+    }
+
+    @Test
+    fun `signInWithApple fails with server error`() = testScope.runTest {
+        seedConfig()
+        val repo = createRepository(
+            statusCode = HttpStatusCode.BadRequest,
+            responseBody = """{"error":"invalid_grant","error_description":"Invalid login credentials"}"""
+        )
+        val result = repo.signInWithApple("bad-apple-token")
+        assertTrue(result.isFailure)
+        assertEquals("The email or password you entered is incorrect", result.exceptionOrNull()?.message)
+    }
+
+    @Test
+    fun `signInWithApple with special characters in token produces valid JSON`() = testScope.runTest {
+        seedConfig()
+        val capturedBody = mutableListOf<String>()
+        val repo = createRepositoryCapturingBody(capturedBody)
+        val result = repo.signInWithApple("""token"with\special}chars""")
+        assertTrue(result.isSuccess)
+        val parsed = json.decodeFromString<JsonObject>(capturedBody.first())
+        assertEquals("""token"with\special}chars""", parsed["id_token"]?.jsonPrimitive?.content)
+    }
+
+    @Test
     fun `signInWithGoogle with special characters in token produces valid JSON`() = testScope.runTest {
         seedConfig()
         val capturedBody = mutableListOf<String>()
