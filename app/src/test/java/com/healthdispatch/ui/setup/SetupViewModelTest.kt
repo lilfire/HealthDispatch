@@ -261,6 +261,15 @@ class SetupViewModelTest {
     }
 
     @Test
+    fun `googleSignInAvailable reflects BuildConfig GOOGLE_CLIENT_ID`() = runTest {
+        val vm = createViewModel()
+        // BuildConfig.GOOGLE_CLIENT_ID defaults to empty string in test
+        // so googleSignInAvailable should reflect whether it's blank
+        val state = vm.uiState.value
+        assertEquals(vm.googleClientId.isNotBlank(), state.googleSignInAvailable)
+    }
+
+    @Test
     fun `submit does nothing while loading`() = runTest {
         coEvery { authRepository.signIn(any(), any()) } coAnswers {
             kotlinx.coroutines.delay(5000)

@@ -53,7 +53,9 @@ data class AuthGoogleRequest(
 class SupabaseAuthRepository @Inject constructor(
     private val httpClient: HttpClient,
     private val dataStore: DataStore<Preferences>,
-    private val json: Json
+    private val json: Json,
+    private val supabaseUrl: String = "",
+    private val supabaseApiKey: String = ""
 ) : AuthRepository {
 
     private val _authState = MutableStateFlow<AuthState>(AuthState.Unknown)
@@ -95,8 +97,7 @@ class SupabaseAuthRepository @Inject constructor(
         return try {
             val token = dataStore.data.map { it[ACCESS_TOKEN_KEY] }.first()
             if (!token.isNullOrBlank()) {
-                val url = dataStore.data.map { it[SUPABASE_URL_KEY] }.first() ?: ""
-                val apiKey = dataStore.data.map { it[SUPABASE_API_KEY] }.first() ?: ""
+                val (url, apiKey) = resolveConfig()
                 httpClient.post("$url/auth/v1/logout") {
                     contentType(ContentType.Application.Json)
                     headers {
@@ -122,13 +123,22 @@ class SupabaseAuthRepository @Inject constructor(
         }
     }
 
+    private suspend fun resolveConfig(): Pair<String, String> {
+        val dsUrl = dataStore.data.map { it[SUPABASE_URL_KEY] }.first() ?: ""
+        val dsKey = dataStore.data.map { it[SUPABASE_API_KEY] }.first() ?: ""
+        val url = dsUrl.ifBlank { supabaseUrl }
+        val apiKey = dsKey.ifBlank { supabaseApiKey }
+        return url to apiKey
+    }
+
     private suspend fun performAuth(endpoint: String, body: String): Result<Unit> {
         return try {
-            val url = dataStore.data.map { it[SUPABASE_URL_KEY] }.first() ?: ""
-            val apiKey = dataStore.data.map { it[SUPABASE_API_KEY] }.first() ?: ""
+            val (url, apiKey) = resolveConfig()
 
-            if (url.isBlank() || apiKey.isBlank()) {
-                return Result.failure(Exception("Supabase URL and API Key must be configured"))
+            if (url.isBlank() || apiKey.isBlank()
+                || url == "https://your-project.supabase.co"
+                || apiKey == "your-anon-key") {
+                return Result.failure(Exception("Supabase is not configured. Please set SUPABASE_URL and SUPABASE_ANON_KEY in local.properties or environment variables."))
             }
 
             val response = httpClient.post("$url$endpoint") {

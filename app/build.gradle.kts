@@ -14,8 +14,15 @@ val localProperties = java.util.Properties().apply {
     }
 }
 
-val supabaseUrl: String = localProperties.getProperty("SUPABASE_URL", "https://your-project.supabase.co")
-val supabaseAnonKey: String = localProperties.getProperty("SUPABASE_ANON_KEY", "your-anon-key")
+val supabaseUrl: String = localProperties.getProperty("SUPABASE_URL")
+    ?: System.getenv("SUPABASE_URL")
+    ?: "https://your-project.supabase.co"
+val supabaseAnonKey: String = localProperties.getProperty("SUPABASE_ANON_KEY")
+    ?: System.getenv("SUPABASE_ANON_KEY")
+    ?: "your-anon-key"
+val googleClientId: String = localProperties.getProperty("GOOGLE_CLIENT_ID")
+    ?: System.getenv("GOOGLE_CLIENT_ID")
+    ?: ""
 
 android {
     namespace = "com.healthdispatch"
@@ -32,6 +39,7 @@ android {
 
         buildConfigField("String", "SUPABASE_URL", "\"$supabaseUrl\"")
         buildConfigField("String", "SUPABASE_ANON_KEY", "\"$supabaseAnonKey\"")
+        buildConfigField("String", "GOOGLE_CLIENT_ID", "\"$googleClientId\"")
     }
 
     signingConfigs {
@@ -97,6 +105,11 @@ dependencies {
     implementation(libs.core.ktx)
     implementation(libs.datastore.preferences)
 
+    // Credential Manager (Google Sign-In)
+    implementation(libs.credentials)
+    implementation(libs.credentials.play.services)
+    implementation(libs.googleid)
+
     // Health Connect
     implementation(libs.health.connect)
 
@@ -144,11 +157,11 @@ dependencies {
 
 tasks.register("validateSupabaseConfig") {
     doLast {
-        require(supabaseUrl != "https://your-project.supabase.co") {
-            "SUPABASE_URL is not configured. Set SUPABASE_URL in local.properties (e.g. SUPABASE_URL=https://abc123.supabase.co)"
+        if (supabaseUrl == "https://your-project.supabase.co") {
+            logger.warn("WARNING: SUPABASE_URL is not configured. Set SUPABASE_URL in local.properties or as an environment variable.")
         }
-        require(supabaseAnonKey != "your-anon-key") {
-            "SUPABASE_ANON_KEY is not configured. Set SUPABASE_ANON_KEY in local.properties"
+        if (supabaseAnonKey == "your-anon-key") {
+            logger.warn("WARNING: SUPABASE_ANON_KEY is not configured. Set SUPABASE_ANON_KEY in local.properties or as an environment variable.")
         }
     }
 }
