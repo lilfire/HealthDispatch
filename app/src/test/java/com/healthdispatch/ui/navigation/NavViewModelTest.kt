@@ -3,6 +3,7 @@ package com.healthdispatch.ui.navigation
 import app.cash.turbine.test
 import com.healthdispatch.data.auth.AuthRepository
 import com.healthdispatch.data.auth.AuthState
+import com.healthdispatch.data.cloud.CloudConfigRepository
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.every
@@ -17,6 +18,7 @@ import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
@@ -26,13 +28,17 @@ class NavViewModelTest {
 
     private val testDispatcher = StandardTestDispatcher()
     private lateinit var authRepository: AuthRepository
+    private lateinit var cloudConfigRepository: CloudConfigRepository
     private val authStateFlow = MutableStateFlow<AuthState>(AuthState.Unknown)
+    private val onboardingCompleteFlow = MutableStateFlow(true)
 
     @Before
     fun setup() {
         Dispatchers.setMain(testDispatcher)
         authRepository = mockk(relaxed = true)
+        cloudConfigRepository = mockk(relaxed = true)
         every { authRepository.authState } returns authStateFlow
+        every { cloudConfigRepository.onboardingCompleteFlow } returns onboardingCompleteFlow
         coEvery { authRepository.refreshAuthState() } coAnswers {}
     }
 
@@ -41,7 +47,7 @@ class NavViewModelTest {
         Dispatchers.resetMain()
     }
 
-    private fun createViewModel() = NavViewModel(authRepository)
+    private fun createViewModel() = NavViewModel(authRepository, cloudConfigRepository)
 
     @Test
     fun `initial auth state is Unknown`() = runTest {
@@ -96,6 +102,26 @@ class NavViewModelTest {
 
             authStateFlow.value = AuthState.Unauthenticated
             assertEquals(AuthState.Unauthenticated, awaitItem())
+
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test
+    fun `onboardingComplete defaults to true`() = runTest {
+        val vm = createViewModel()
+        assertTrue(vm.onboardingComplete.value)
+    }
+
+    @Test
+    fun `onboardingComplete reflects cloud config state`() = runTest {
+        onboardingCompleteFlow.value = false
+        val vm = createViewModel()
+        vm.onboardingComplete.test {
+            assertFalse(awaitItem())
+
+            onboardingCompleteFlow.value = true
+            assertTrue(awaitItem())
 
             cancelAndIgnoreRemainingEvents()
         }

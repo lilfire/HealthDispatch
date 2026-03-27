@@ -52,7 +52,9 @@ class SupabaseAuthRepositoryTest {
 
     private fun createRepository(
         statusCode: HttpStatusCode = HttpStatusCode.OK,
-        responseBody: String = """{"access_token":"test-token","refresh_token":"test-refresh","token_type":"bearer","expires_in":3600}"""
+        responseBody: String = """{"access_token":"test-token","refresh_token":"test-refresh","token_type":"bearer","expires_in":3600}""",
+        defaultSupabaseUrl: String = "",
+        defaultSupabaseApiKey: String = ""
     ): SupabaseAuthRepository {
         val mockEngine = MockEngine { request ->
             respond(
@@ -64,7 +66,7 @@ class SupabaseAuthRepositoryTest {
         val httpClient = HttpClient(mockEngine) {
             install(ContentNegotiation) { json(json) }
         }
-        return SupabaseAuthRepository(httpClient, dataStore, json)
+        return SupabaseAuthRepository(httpClient, dataStore, json, defaultSupabaseUrl, defaultSupabaseApiKey)
     }
 
     private suspend fun seedConfig() {
@@ -105,11 +107,67 @@ class SupabaseAuthRepositoryTest {
     }
 
     @Test
-    fun `signIn fails with missing config`() = testScope.runTest {
+    fun `signIn fails with missing config when no defaults provided`() = testScope.runTest {
         val repo = createRepository()
         val result = repo.signIn("user@example.com", "password123")
         assertTrue(result.isFailure)
-        assertEquals("Supabase URL and API Key must be configured", result.exceptionOrNull()?.message)
+        assertEquals("Supabase is not configured. Please complete the cloud setup in Settings", result.exceptionOrNull()?.message)
+    }
+
+    @Test
+    fun `signIn fails with placeholder config values`() = testScope.runTest {
+        val repo = createRepository(
+            defaultSupabaseUrl = "https://your-project.supabase.co",
+            defaultSupabaseApiKey = "your-anon-key"
+        )
+        val result = repo.signIn("user@example.com", "password123")
+        assertTrue(result.isFailure)
+        assertEquals("Supabase is not configured. Please complete the cloud setup in Settings", result.exceptionOrNull()?.message)
+    }
+
+    @Test
+    fun `signIn uses BuildConfig defaults when DataStore is empty`() = testScope.runTest {
+        val repo = createRepository(
+            defaultSupabaseUrl = "https://default.supabase.co",
+            defaultSupabaseApiKey = "default-api-key"
+        )
+        val result = repo.signIn("user@example.com", "password123")
+        assertTrue(result.isSuccess)
+        assertEquals(AuthState.Authenticated, repo.authState.value)
+    }
+
+    @Test
+    fun `signIn prefers DataStore values over defaults`() = testScope.runTest {
+        seedConfig()
+        val capturedUrls = mutableListOf<String>()
+        val mockEngine = MockEngine { request ->
+            capturedUrls.add(request.url.toString())
+            respond(
+                content = """{"access_token":"test-token","refresh_token":"test-refresh","token_type":"bearer","expires_in":3600}""",
+                status = HttpStatusCode.OK,
+                headers = headersOf(HttpHeaders.ContentType, ContentType.Application.Json.toString())
+            )
+        }
+        val httpClient = HttpClient(mockEngine) {
+            install(ContentNegotiation) { json(json) }
+        }
+        val repo = SupabaseAuthRepository(
+            httpClient, dataStore, json,
+            defaultSupabaseUrl = "https://default.supabase.co",
+            defaultSupabaseApiKey = "default-api-key"
+        )
+        repo.signIn("user@example.com", "password123")
+        assertTrue(capturedUrls.first().startsWith("https://test.supabase.co"))
+    }
+
+    @Test
+    fun `signUp uses BuildConfig defaults when DataStore is empty`() = testScope.runTest {
+        val repo = createRepository(
+            defaultSupabaseUrl = "https://default.supabase.co",
+            defaultSupabaseApiKey = "default-api-key"
+        )
+        val result = repo.signUp("new@example.com", "password123")
+        assertTrue(result.isSuccess)
     }
 
     @Test
@@ -212,7 +270,7 @@ class SupabaseAuthRepositoryTest {
         val httpClient = HttpClient(failingEngine) {
             install(ContentNegotiation) { json(json) }
         }
-        val repo = SupabaseAuthRepository(httpClient, dataStore, json)
+        val repo = SupabaseAuthRepository(httpClient, dataStore, json, "", "")
 
         dataStore.edit {
             it[SupabaseAuthRepository.SUPABASE_URL_KEY] = "https://test.supabase.co"
@@ -234,7 +292,7 @@ class SupabaseAuthRepositoryTest {
         val httpClient = HttpClient(failingEngine) {
             install(ContentNegotiation) { json(json) }
         }
-        val repo = SupabaseAuthRepository(httpClient, dataStore, json)
+        val repo = SupabaseAuthRepository(httpClient, dataStore, json, "", "")
         val result = repo.signIn("user@example.com", "password123")
         assertTrue(result.isFailure)
         assertEquals("No internet connection. Please check your network and try again", result.exceptionOrNull()?.message)
@@ -249,7 +307,7 @@ class SupabaseAuthRepositoryTest {
         val httpClient = HttpClient(failingEngine) {
             install(ContentNegotiation) { json(json) }
         }
-        val repo = SupabaseAuthRepository(httpClient, dataStore, json)
+        val repo = SupabaseAuthRepository(httpClient, dataStore, json, "", "")
         val result = repo.signIn("user@example.com", "password123")
         assertTrue(result.isFailure)
         assertEquals("No internet connection. Please check your network and try again", result.exceptionOrNull()?.message)
@@ -264,7 +322,7 @@ class SupabaseAuthRepositoryTest {
         val httpClient = HttpClient(failingEngine) {
             install(ContentNegotiation) { json(json) }
         }
-        val repo = SupabaseAuthRepository(httpClient, dataStore, json)
+        val repo = SupabaseAuthRepository(httpClient, dataStore, json, "", "")
         val result = repo.signIn("user@example.com", "password123")
         assertTrue(result.isFailure)
         assertEquals("Connection timed out. Please check your network and try again", result.exceptionOrNull()?.message)
@@ -279,7 +337,7 @@ class SupabaseAuthRepositoryTest {
         val httpClient = HttpClient(failingEngine) {
             install(ContentNegotiation) { json(json) }
         }
-        val repo = SupabaseAuthRepository(httpClient, dataStore, json)
+        val repo = SupabaseAuthRepository(httpClient, dataStore, json, "", "")
         val result = repo.signIn("user@example.com", "password123")
         assertTrue(result.isFailure)
         assertEquals("No internet connection. Please check your network and try again", result.exceptionOrNull()?.message)
@@ -301,7 +359,7 @@ class SupabaseAuthRepositoryTest {
         val httpClient = HttpClient(mockEngine) {
             install(ContentNegotiation) { json(json) }
         }
-        return SupabaseAuthRepository(httpClient, dataStore, json)
+        return SupabaseAuthRepository(httpClient, dataStore, json, "", "")
     }
 
     @Test

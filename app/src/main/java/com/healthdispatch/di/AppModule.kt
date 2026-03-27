@@ -11,7 +11,6 @@ import com.healthdispatch.data.auth.AuthRepository
 import com.healthdispatch.data.auth.SupabaseAuthClient
 import com.healthdispatch.data.auth.SupabaseAuthRepository
 import com.healthdispatch.data.cloud.AuthSessionProvider
-import com.healthdispatch.data.cloud.CloudConfig
 import com.healthdispatch.data.cloud.PostgrestClientWrapper
 import com.healthdispatch.data.cloud.SupabaseAuthSessionProvider
 import com.healthdispatch.data.cloud.SupabasePostgrestClientWrapper
@@ -101,7 +100,11 @@ object AppModule {
         dataStore: DataStore<Preferences>,
         json: Json
     ): AuthRepository {
-        return SupabaseAuthRepository(httpClient, dataStore, json)
+        return SupabaseAuthRepository(
+            httpClient, dataStore, json,
+            defaultSupabaseUrl = BuildConfig.SUPABASE_URL,
+            defaultSupabaseApiKey = BuildConfig.SUPABASE_ANON_KEY
+        )
     }
 }
 

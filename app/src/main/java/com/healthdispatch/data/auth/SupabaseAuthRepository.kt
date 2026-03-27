@@ -53,7 +53,9 @@ data class AuthGoogleRequest(
 class SupabaseAuthRepository @Inject constructor(
     private val httpClient: HttpClient,
     private val dataStore: DataStore<Preferences>,
-    private val json: Json
+    private val json: Json,
+    private val defaultSupabaseUrl: String = "",
+    private val defaultSupabaseApiKey: String = ""
 ) : AuthRepository {
 
     private val _authState = MutableStateFlow<AuthState>(AuthState.Unknown)
@@ -95,8 +97,10 @@ class SupabaseAuthRepository @Inject constructor(
         return try {
             val token = dataStore.data.map { it[ACCESS_TOKEN_KEY] }.first()
             if (!token.isNullOrBlank()) {
-                val url = dataStore.data.map { it[SUPABASE_URL_KEY] }.first() ?: ""
-                val apiKey = dataStore.data.map { it[SUPABASE_API_KEY] }.first() ?: ""
+                val storedUrl = dataStore.data.map { it[SUPABASE_URL_KEY] }.first() ?: ""
+                val storedApiKey = dataStore.data.map { it[SUPABASE_API_KEY] }.first() ?: ""
+                val url = storedUrl.ifBlank { defaultSupabaseUrl }
+                val apiKey = storedApiKey.ifBlank { defaultSupabaseApiKey }
                 httpClient.post("$url/auth/v1/logout") {
                     contentType(ContentType.Application.Json)
                     headers {
@@ -124,11 +128,14 @@ class SupabaseAuthRepository @Inject constructor(
 
     private suspend fun performAuth(endpoint: String, body: String): Result<Unit> {
         return try {
-            val url = dataStore.data.map { it[SUPABASE_URL_KEY] }.first() ?: ""
-            val apiKey = dataStore.data.map { it[SUPABASE_API_KEY] }.first() ?: ""
+            val storedUrl = dataStore.data.map { it[SUPABASE_URL_KEY] }.first() ?: ""
+            val storedApiKey = dataStore.data.map { it[SUPABASE_API_KEY] }.first() ?: ""
 
-            if (url.isBlank() || apiKey.isBlank()) {
-                return Result.failure(Exception("Supabase URL and API Key must be configured"))
+            val url = storedUrl.ifBlank { defaultSupabaseUrl }
+            val apiKey = storedApiKey.ifBlank { defaultSupabaseApiKey }
+
+            if (url.isBlank() || apiKey.isBlank() || isPlaceholderConfig(url, apiKey)) {
+                return Result.failure(Exception("Supabase is not configured. Please complete the cloud setup in Settings"))
             }
 
             val response = httpClient.post("$url$endpoint") {
@@ -169,6 +176,10 @@ class SupabaseAuthRepository @Inject constructor(
         } catch (e: Exception) {
             Result.failure(e)
         }
+    }
+
+    private fun isPlaceholderConfig(url: String, apiKey: String): Boolean {
+        return url == "https://your-project.supabase.co" || apiKey == "your-anon-key"
     }
 
     private fun mapErrorMessage(raw: String): String {

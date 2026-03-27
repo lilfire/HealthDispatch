@@ -8,6 +8,10 @@ import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
+import io.ktor.client.HttpClient
+import io.ktor.client.request.get
+import io.ktor.client.request.headers
+import io.ktor.http.isSuccess
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -25,12 +29,15 @@ data class OnboardingState(
     val supabaseUrl: String = "",
     val supabaseKey: String = "",
     val permissionsGranted: Boolean = false,
-    val isComplete: Boolean = false
+    val isComplete: Boolean = false,
+    val isValidating: Boolean = false,
+    val validationError: String? = null
 )
 
 @HiltViewModel
 class OnboardingViewModel @Inject constructor(
-    private val dataStore: DataStore<Preferences>
+    private val dataStore: DataStore<Preferences>,
+    private val httpClient: HttpClient
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(OnboardingState())
@@ -78,15 +85,71 @@ class OnboardingViewModel @Inject constructor(
     }
 
     fun setSupabaseUrl(url: String) {
-        _state.update { it.copy(supabaseUrl = url) }
+        _state.update { it.copy(supabaseUrl = url, validationError = null) }
     }
 
     fun setSupabaseKey(key: String) {
-        _state.update { it.copy(supabaseKey = key) }
+        _state.update { it.copy(supabaseKey = key, validationError = null) }
     }
 
     fun setPermissionsGranted(granted: Boolean) {
         _state.update { it.copy(permissionsGranted = granted) }
+    }
+
+    fun clearValidationError() {
+        _state.update { it.copy(validationError = null) }
+    }
+
+    fun validateAndSaveCloudConfig() {
+        val current = _state.value
+        if (current.isValidating) return
+
+        _state.update { it.copy(isValidating = true, validationError = null) }
+
+        viewModelScope.launch {
+            val result = testConnection(current.supabaseUrl, current.supabaseKey)
+            result.onSuccess {
+                dataStore.edit { prefs ->
+                    prefs[SUPABASE_URL_KEY] = current.supabaseUrl
+                    prefs[SUPABASE_API_KEY] = current.supabaseKey
+                }
+                _state.update { it.copy(isValidating = false) }
+                goToNext()
+            }
+            result.onFailure { error ->
+                _state.update {
+                    it.copy(
+                        isValidating = false,
+                        validationError = error.message ?: "Connection failed"
+                    )
+                }
+            }
+        }
+    }
+
+    internal suspend fun testConnection(url: String, apiKey: String): Result<Unit> {
+        return try {
+            val response = httpClient.get("$url/rest/v1/") {
+                headers {
+                    append("apikey", apiKey)
+                }
+            }
+            if (response.status.isSuccess()) {
+                Result.success(Unit)
+            } else {
+                Result.failure(Exception("Could not connect to Supabase (${response.status}). Check your URL and API key"))
+            }
+        } catch (e: java.net.UnknownHostException) {
+            Result.failure(Exception("Cannot reach server. Check the URL and your internet connection"))
+        } catch (e: java.net.ConnectException) {
+            Result.failure(Exception("Cannot reach server. Check the URL and your internet connection"))
+        } catch (e: java.net.SocketTimeoutException) {
+            Result.failure(Exception("Connection timed out. Check the URL and your internet connection"))
+        } catch (e: java.io.IOException) {
+            Result.failure(Exception("Connection failed. Check the URL and your internet connection"))
+        } catch (e: Exception) {
+            Result.failure(Exception("Connection failed: ${e.message}"))
+        }
     }
 
     fun saveCloudConfig() {

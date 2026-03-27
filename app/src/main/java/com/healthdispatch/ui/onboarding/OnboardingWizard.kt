@@ -77,13 +77,12 @@ fun OnboardingWizard(
                     pathChoice = state.pathChoice,
                     supabaseUrl = state.supabaseUrl,
                     supabaseKey = state.supabaseKey,
+                    isValidating = state.isValidating,
+                    validationError = state.validationError,
                     onUrlChange = { viewModel.setSupabaseUrl(it) },
                     onKeyChange = { viewModel.setSupabaseKey(it) },
                     onBack = { viewModel.goBack() },
-                    onNext = {
-                        viewModel.saveCloudConfig()
-                        viewModel.goToNext()
-                    }
+                    onNext = { viewModel.validateAndSaveCloudConfig() }
                 )
 
                 OnboardingStep.PERMISSIONS -> PermissionsStep(

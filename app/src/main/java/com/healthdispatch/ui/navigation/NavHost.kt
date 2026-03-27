@@ -17,12 +17,15 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import com.healthdispatch.data.auth.AuthState
+import com.healthdispatch.data.healthconnect.HealthConnectRepository
 import com.healthdispatch.ui.dashboard.DashboardScreen
+import com.healthdispatch.ui.onboarding.OnboardingWizard
 import com.healthdispatch.ui.permission.HealthPermissionScreen
 import com.healthdispatch.ui.setup.SetupScreen
 import com.healthdispatch.ui.settings.SettingsScreen
 
 object Routes {
+    const val ONBOARDING = "onboarding"
     const val SETUP = "setup"
     const val HEALTH_PERMISSIONS = "health_permissions"
     const val DASHBOARD = "dashboard"
@@ -31,10 +34,12 @@ object Routes {
 
 @Composable
 fun HealthDispatchNavHost(
+    healthConnectRepository: HealthConnectRepository,
     navViewModel: NavViewModel = hiltViewModel()
 ) {
     val navController = rememberNavController()
     val authState by navViewModel.authState.collectAsStateWithLifecycle()
+    val onboardingComplete by navViewModel.onboardingComplete.collectAsStateWithLifecycle()
 
     // N1: Show splash/loading screen while auth state is resolving
     if (authState is AuthState.Unknown) {
@@ -42,8 +47,9 @@ fun HealthDispatchNavHost(
         return
     }
 
-    val startDestination = when (authState) {
-        is AuthState.Authenticated -> Routes.DASHBOARD
+    val startDestination = when {
+        authState is AuthState.Authenticated -> Routes.DASHBOARD
+        !onboardingComplete -> Routes.ONBOARDING
         else -> Routes.SETUP
     }
 
@@ -57,6 +63,16 @@ fun HealthDispatchNavHost(
     }
 
     NavHost(navController = navController, startDestination = startDestination) {
+        composable(Routes.ONBOARDING) {
+            OnboardingWizard(
+                healthConnectRepository = healthConnectRepository,
+                onComplete = {
+                    navController.navigate(Routes.SETUP) {
+                        popUpTo(Routes.ONBOARDING) { inclusive = true }
+                    }
+                }
+            )
+        }
         composable(Routes.SETUP) {
             SetupScreen(
                 onSetupComplete = {
