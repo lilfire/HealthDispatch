@@ -39,12 +39,14 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusDirection
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.contentDescription
@@ -58,6 +60,9 @@ import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.healthdispatch.BuildConfig
+import com.healthdispatch.data.auth.GoogleSignInHelper
+import kotlinx.coroutines.launch
 
 @Composable
 fun SetupScreen(
@@ -65,6 +70,8 @@ fun SetupScreen(
     viewModel: SetupViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    val context = LocalContext.current
+    val coroutineScope = rememberCoroutineScope()
 
     LaunchedEffect(Unit) {
         viewModel.authSuccessEvent.collect {
@@ -79,7 +86,24 @@ fun SetupScreen(
         onConfirmPasswordChange = viewModel::updateConfirmPassword,
         onToggleMode = viewModel::toggleMode,
         onSubmit = viewModel::submit,
-        onClearError = viewModel::clearError
+        onClearError = viewModel::clearError,
+        onGoogleSignIn = {
+            coroutineScope.launch {
+                viewModel.setGoogleSignInLoading()
+                val result = GoogleSignInHelper.signIn(
+                    context = context,
+                    googleClientId = BuildConfig.GOOGLE_CLIENT_ID
+                )
+                result.onSuccess { idToken ->
+                    viewModel.handleGoogleSignIn(idToken)
+                }
+                result.onFailure { error ->
+                    viewModel.handleGoogleSignInError(
+                        error.message ?: "Google sign-in failed"
+                    )
+                }
+            }
+        }
     )
 }
 
@@ -91,7 +115,8 @@ fun SetupScreenContent(
     onConfirmPasswordChange: (String) -> Unit,
     onToggleMode: () -> Unit,
     onSubmit: () -> Unit,
-    onClearError: () -> Unit
+    onClearError: () -> Unit,
+    onGoogleSignIn: () -> Unit = {}
 ) {
     val focusManager = LocalFocusManager.current
     val emailFocusRequester = remember { FocusRequester() }
@@ -136,10 +161,35 @@ fun SetupScreenContent(
 
                 Spacer(modifier = Modifier.height(32.dp))
 
-                // U2: Google Sign-In hidden until backend config is available
-                // TODO: Wire up Google Sign-In with Credential Manager API once
-                //  backend OAuth client ID is configured. Re-enable this button
-                //  and pass the ID token to SetupViewModel.handleGoogleSignIn().
+                // Google Sign-In button
+                OutlinedButton(
+                    onClick = onGoogleSignIn,
+                    enabled = !uiState.isLoading,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .defaultMinSize(minHeight = 48.dp)
+                ) {
+                    Text("Sign in with Google")
+                }
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                // "or" divider between Google and email/password
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    HorizontalDivider(modifier = Modifier.weight(1f))
+                    Text(
+                        text = "or",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(horizontal = 16.dp)
+                    )
+                    HorizontalDivider(modifier = Modifier.weight(1f))
+                }
+
+                Spacer(modifier = Modifier.height(16.dp))
 
                 // Email field
                 OutlinedTextField(

@@ -229,6 +229,27 @@ class SetupViewModelTest {
     }
 
     @Test
+    fun `handleGoogleSignIn sets loading true while in progress`() = runTest {
+        coEvery { authRepository.signInWithGoogle(any()) } coAnswers {
+            kotlinx.coroutines.delay(5000)
+            Result.success(Unit)
+        }
+        val vm = createViewModel()
+        vm.handleGoogleSignIn("google-id-token-123")
+        testScheduler.advanceTimeBy(100)
+        assertTrue(vm.uiState.value.isLoading)
+    }
+
+    @Test
+    fun `handleGoogleSignIn clears loading on success`() = runTest {
+        coEvery { authRepository.signInWithGoogle(any()) } returns Result.success(Unit)
+        val vm = createViewModel()
+        vm.handleGoogleSignIn("google-id-token-123")
+        advanceUntilIdle()
+        assertFalse(vm.uiState.value.isLoading)
+    }
+
+    @Test
     fun `handleGoogleSignIn failure shows error`() = runTest {
         coEvery { authRepository.signInWithGoogle(any()) } returns
             Result.failure(Exception("Google sign-in failed"))
@@ -236,6 +257,45 @@ class SetupViewModelTest {
         vm.handleGoogleSignIn("bad-token")
         advanceUntilIdle()
         assertEquals("Google sign-in failed", vm.uiState.value.errorMessage)
+        assertFalse(vm.uiState.value.isLoading)
+    }
+
+    @Test
+    fun `handleGoogleSignIn clears previous error`() = runTest {
+        coEvery { authRepository.signInWithGoogle(any()) } returns Result.success(Unit)
+        val vm = createViewModel()
+        // Set an existing error first
+        vm.submit() // triggers validation error
+        advanceUntilIdle()
+        assertTrue(vm.uiState.value.errorMessage != null)
+        // Google sign-in should clear the error
+        vm.handleGoogleSignIn("google-id-token-123")
+        testScheduler.advanceTimeBy(100)
+        assertNull(vm.uiState.value.errorMessage)
+    }
+
+    @Test
+    fun `handleGoogleSignInError sets error message`() = runTest {
+        val vm = createViewModel()
+        vm.handleGoogleSignInError("No Google accounts found. Please add a Google account to your device")
+        assertEquals(
+            "No Google accounts found. Please add a Google account to your device",
+            vm.uiState.value.errorMessage
+        )
+        assertFalse(vm.uiState.value.isLoading)
+    }
+
+    @Test
+    fun `setGoogleSignInLoading sets loading true and clears error`() = runTest {
+        val vm = createViewModel()
+        // Set an error first
+        vm.submit()
+        advanceUntilIdle()
+        assertTrue(vm.uiState.value.errorMessage != null)
+        // Now set loading
+        vm.setGoogleSignInLoading()
+        assertTrue(vm.uiState.value.isLoading)
+        assertNull(vm.uiState.value.errorMessage)
     }
 
     @Test

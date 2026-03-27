@@ -125,6 +125,14 @@ class SetupViewModel @Inject constructor(
         }
     }
 
+    fun handleGoogleSignInError(errorMessage: String) {
+        _uiState.update { it.copy(isLoading = false, errorMessage = errorMessage) }
+    }
+
+    fun setGoogleSignInLoading() {
+        _uiState.update { it.copy(isLoading = true, errorMessage = null) }
+    }
+
     private fun validate(state: SetupUiState): String? {
         if (state.email.isBlank()) {
             return "Please enter your email address"
