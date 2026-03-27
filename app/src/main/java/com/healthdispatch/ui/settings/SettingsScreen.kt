@@ -63,7 +63,7 @@ fun SettingsScreen(
         ) {
             ListItem(
                 headlineContent = { Text("Account") },
-                supportingContent = { Text("Signed in via Supabase Auth") }
+                supportingContent = { Text("Signed in via Firebase Auth") }
             )
             HorizontalDivider()
             ListItem(

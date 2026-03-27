@@ -5,17 +5,8 @@ plugins {
     alias(libs.plugins.kotlin.serialization)
     alias(libs.plugins.hilt)
     alias(libs.plugins.ksp)
+    alias(libs.plugins.google.services)
 }
-
-val localProperties = java.util.Properties().apply {
-    val localPropsFile = rootProject.file("local.properties")
-    if (localPropsFile.exists()) {
-        localPropsFile.inputStream().use { load(it) }
-    }
-}
-
-val supabaseUrl: String = localProperties.getProperty("SUPABASE_URL", "https://your-project.supabase.co")
-val supabaseAnonKey: String = localProperties.getProperty("SUPABASE_ANON_KEY", "your-anon-key")
 
 android {
     namespace = "com.healthdispatch"
@@ -29,9 +20,6 @@ android {
         versionName = "0.1.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
-
-        buildConfigField("String", "SUPABASE_URL", "\"$supabaseUrl\"")
-        buildConfigField("String", "SUPABASE_ANON_KEY", "\"$supabaseAnonKey\"")
     }
 
     signingConfigs {
@@ -115,16 +103,10 @@ dependencies {
     // WorkManager
     implementation(libs.work.runtime)
 
-    // Supabase
-    implementation(platform(libs.supabase.bom))
-    implementation(libs.supabase.gotrue)
-    implementation(libs.supabase.postgrest)
-
-    // Ktor (required by Supabase SDK)
-    implementation(libs.ktor.client.core)
-    implementation(libs.ktor.client.okhttp)
-    implementation(libs.ktor.client.content.negotiation)
-    implementation(libs.ktor.serialization.json)
+    // Firebase
+    implementation(platform(libs.firebase.bom))
+    implementation(libs.firebase.auth)
+    implementation(libs.firebase.firestore)
 
     // Coroutines
     implementation(libs.coroutines.core)
@@ -135,24 +117,8 @@ dependencies {
     testImplementation(libs.mockk)
     testImplementation(libs.coroutines.test)
     testImplementation(libs.turbine)
-    testImplementation(libs.ktor.client.mock)
     androidTestImplementation(libs.test.ext)
     androidTestImplementation(libs.espresso.core)
     androidTestImplementation(composeBom)
     androidTestImplementation(libs.compose.ui.test)
-}
-
-tasks.register("validateSupabaseConfig") {
-    doLast {
-        require(supabaseUrl != "https://your-project.supabase.co") {
-            "SUPABASE_URL is not configured. Set SUPABASE_URL in local.properties (e.g. SUPABASE_URL=https://abc123.supabase.co)"
-        }
-        require(supabaseAnonKey != "your-anon-key") {
-            "SUPABASE_ANON_KEY is not configured. Set SUPABASE_ANON_KEY in local.properties"
-        }
-    }
-}
-
-tasks.matching { it.name.startsWith("assemble") || it.name.startsWith("install") }.configureEach {
-    dependsOn("validateSupabaseConfig")
 }
