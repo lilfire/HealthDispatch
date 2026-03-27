@@ -239,6 +239,41 @@ class SetupViewModelTest {
     }
 
     @Test
+    fun `handleFacebookSignIn calls repository with token`() = runTest {
+        coEvery { authRepository.signInWithFacebook(any()) } returns Result.success(Unit)
+        val vm = createViewModel()
+        vm.handleFacebookSignIn("fb-token-123")
+        advanceUntilIdle()
+        coVerify { authRepository.signInWithFacebook("fb-token-123") }
+    }
+
+    @Test
+    fun `handleFacebookSignIn failure shows error`() = runTest {
+        coEvery { authRepository.signInWithFacebook(any()) } returns
+            Result.failure(Exception("Facebook sign-in failed"))
+        val vm = createViewModel()
+        vm.handleFacebookSignIn("bad-token")
+        advanceUntilIdle()
+        assertEquals("Facebook sign-in failed", vm.uiState.value.errorMessage)
+        assertFalse(vm.uiState.value.isLoading)
+    }
+
+    @Test
+    fun `handleFacebookSignIn sets loading state`() = runTest {
+        coEvery { authRepository.signInWithFacebook(any()) } returns Result.success(Unit)
+        val vm = createViewModel()
+        vm.uiState.test {
+            awaitItem() // initial state
+            vm.handleFacebookSignIn("fb-token")
+            val loadingState = awaitItem()
+            assertTrue(loadingState.isLoading)
+            assertNull(loadingState.errorMessage)
+            advanceUntilIdle()
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test
     fun `clearError removes error message`() = runTest {
         val vm = createViewModel()
         vm.submit() // triggers validation error

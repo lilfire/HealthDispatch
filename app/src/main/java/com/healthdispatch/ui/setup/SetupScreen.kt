@@ -79,7 +79,8 @@ fun SetupScreen(
         onConfirmPasswordChange = viewModel::updateConfirmPassword,
         onToggleMode = viewModel::toggleMode,
         onSubmit = viewModel::submit,
-        onClearError = viewModel::clearError
+        onClearError = viewModel::clearError,
+        onFacebookSignIn = viewModel::handleFacebookSignIn
     )
 }
 
@@ -91,7 +92,8 @@ fun SetupScreenContent(
     onConfirmPasswordChange: (String) -> Unit,
     onToggleMode: () -> Unit,
     onSubmit: () -> Unit,
-    onClearError: () -> Unit
+    onClearError: () -> Unit,
+    onFacebookSignIn: (String) -> Unit = {}
 ) {
     val focusManager = LocalFocusManager.current
     val emailFocusRequester = remember { FocusRequester() }
@@ -317,6 +319,25 @@ fun SetupScreenContent(
                         modifier = Modifier.padding(horizontal = 16.dp)
                     )
                     HorizontalDivider(modifier = Modifier.weight(1f))
+                }
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                // Facebook Sign-In button (Facebook brand guidelines: blue #1877F2)
+                OutlinedButton(
+                    onClick = {
+                        // TODO: Launch Facebook OAuth flow via browser/Custom Tab
+                        // and pass the returned access token to onFacebookSignIn()
+                    },
+                    enabled = !uiState.isLoading,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .defaultMinSize(minHeight = 48.dp)
+                ) {
+                    Text(
+                        text = "Sign in with Facebook",
+                        fontWeight = FontWeight.Medium
+                    )
                 }
 
                 Spacer(modifier = Modifier.height(16.dp))
