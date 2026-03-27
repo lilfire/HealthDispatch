@@ -1,5 +1,6 @@
 package com.healthdispatch.ui.setup
 
+import android.util.Log
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -65,7 +66,12 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.google.android.libraries.identity.googleid.GetGoogleIdOption
 import com.google.android.libraries.identity.googleid.GoogleIdTokenCredential
+import com.healthdispatch.BuildConfig
 import kotlinx.coroutines.launch
+import java.security.MessageDigest
+import java.util.UUID
+
+private const val TAG = "SetupScreen"
 
 @Composable
 fun SetupScreen(
@@ -73,12 +79,16 @@ fun SetupScreen(
     viewModel: SetupViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    val context = LocalContext.current
+    val coroutineScope = rememberCoroutineScope()
 
     LaunchedEffect(Unit) {
         viewModel.authSuccessEvent.collect {
             onSetupComplete()
         }
     }
+
+    val googleSignInAvailable = BuildConfig.GOOGLE_CLIENT_ID.isNotBlank()
 
     SetupScreenContent(
         uiState = uiState,
@@ -88,8 +98,17 @@ fun SetupScreen(
         onToggleMode = viewModel::toggleMode,
         onSubmit = viewModel::submit,
         onClearError = viewModel::clearError,
-        onGoogleSignIn = viewModel::handleGoogleSignIn,
-        googleClientId = viewModel.googleClientId,
+        googleSignInAvailable = googleSignInAvailable,
+        onGoogleSignIn = {
+            coroutineScope.launch {
+                launchGoogleSignIn(
+                    context = context,
+                    googleClientId = BuildConfig.GOOGLE_CLIENT_ID,
+                    onSuccess = { idToken, rawNonce -> viewModel.handleGoogleSignIn(idToken, rawNonce) },
+                    onError = { error -> viewModel.handleGoogleSignInError(error) }
+                )
+            }
+        },
         onAppleSignIn = viewModel::handleAppleSignIn,
         onFacebookSignIn = viewModel::handleFacebookSignIn
     )
@@ -104,8 +123,8 @@ fun SetupScreenContent(
     onToggleMode: () -> Unit,
     onSubmit: () -> Unit,
     onClearError: () -> Unit,
-    onGoogleSignIn: (String) -> Unit = {},
-    googleClientId: String = "",
+    googleSignInAvailable: Boolean = false,
+    onGoogleSignIn: () -> Unit = {},
     onAppleSignIn: (String) -> Unit = {},
     onFacebookSignIn: (String) -> Unit = {}
 ) {
@@ -155,18 +174,9 @@ fun SetupScreenContent(
                 Spacer(modifier = Modifier.height(32.dp))
 
                 // Google Sign-In button (shown when client ID is configured)
-                if (uiState.googleSignInAvailable) {
+                if (googleSignInAvailable) {
                     OutlinedButton(
-                        onClick = {
-                            coroutineScope.launch {
-                                launchGoogleSignIn(
-                                    context = context,
-                                    googleClientId = googleClientId,
-                                    onIdToken = onGoogleSignIn,
-                                    onError = { /* errors handled via ViewModel */ }
-                                )
-                            }
-                        },
+                        onClick = onGoogleSignIn,
                         enabled = !uiState.isLoading,
                         modifier = Modifier
                             .fillMaxWidth()
@@ -434,24 +444,38 @@ fun SetupScreenContent(
 internal suspend fun launchGoogleSignIn(
     context: android.content.Context,
     googleClientId: String,
-    onIdToken: (String) -> Unit,
+    onSuccess: (idToken: String, rawNonce: String) -> Unit,
     onError: (Exception) -> Unit
 ) {
     try {
-        val credentialManager = CredentialManager.create(context)
+        // Generate a cryptographic nonce for replay attack prevention
+        val rawNonce = UUID.randomUUID().toString()
+        val hashedNonce = MessageDigest.getInstance("SHA-256")
+            .digest(rawNonce.toByteArray())
+            .joinToString("") { "%02x".format(it) }
+
         val googleIdOption = GetGoogleIdOption.Builder()
-            .setFilterByAuthorizedAccounts(false)
             .setServerClientId(googleClientId)
+            .setFilterByAuthorizedAccounts(false)
+            .setNonce(hashedNonce)
             .build()
+
         val request = GetCredentialRequest.Builder()
             .addCredentialOption(googleIdOption)
             .build()
+
+        val credentialManager = CredentialManager.create(context)
         val result = credentialManager.getCredential(context, request)
-        val googleIdToken = GoogleIdTokenCredential.createFrom(result.credential.data)
-        onIdToken(googleIdToken.idToken)
-    } catch (_: GetCredentialCancellationException) {
-        // User cancelled - no action needed
+        val credential = result.credential
+        val googleIdTokenCredential = GoogleIdTokenCredential.createFrom(credential.data)
+        val idToken = googleIdTokenCredential.idToken
+
+        onSuccess(idToken, rawNonce)
+    } catch (e: GetCredentialCancellationException) {
+        Log.d(TAG, "Google sign-in cancelled by user")
+        // User cancelled -- no error to surface
     } catch (e: Exception) {
-        onError(e)
+        Log.e(TAG, "Google sign-in failed", e)
+        onError(Exception("Google sign-in failed. Please try again"))
     }
 }

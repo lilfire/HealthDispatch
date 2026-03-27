@@ -112,7 +112,7 @@ dependencies {
     implementation(libs.core.ktx)
     implementation(libs.datastore.preferences)
 
-    // Credential Manager (Google Sign-In)
+    // Credentials / Google Sign-In
     implementation(libs.credentials)
     implementation(libs.credentials.play.services)
     implementation(libs.googleid)

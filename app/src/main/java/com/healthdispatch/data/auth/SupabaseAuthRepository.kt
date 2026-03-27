@@ -47,7 +47,8 @@ data class AuthCredentialsRequest(
 @Serializable
 data class AuthOAuthRequest(
     val provider: String,
-    val id_token: String
+    val id_token: String,
+    val nonce: String
 )
 
 @Singleton
@@ -87,10 +88,10 @@ class SupabaseAuthRepository @Inject constructor(
         )
     }
 
-    override suspend fun signInWithGoogle(idToken: String): Result<Unit> {
+    override suspend fun signInWithGoogle(idToken: String, nonce: String): Result<Unit> {
         return performAuth(
             endpoint = "/auth/v1/token?grant_type=id_token",
-            body = json.encodeToString(AuthOAuthRequest.serializer(), AuthOAuthRequest(provider = "google", id_token = idToken))
+            body = json.encodeToString(AuthOAuthRequest.serializer(), AuthOAuthRequest(provider = "google", id_token = idToken, nonce = nonce))
         )
     }
 

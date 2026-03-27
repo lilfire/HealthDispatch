@@ -24,6 +24,8 @@ coroutines-test = "1.9.0"
 espresso = "3.6.1"
 test-ext = "1.2.1"
 turbine = "1.2.0"
+credentials = "1.5.0-beta01"
+googleid = "1.1.1"
 
 [libraries]
 # Compose
@@ -78,6 +80,11 @@ ktor-serialization-json = { group = "io.ktor", name = "ktor-serialization-kotlin
 supabase-bom = { group = "io.github.jan-tennert.supabase", name = "bom", version.ref = "supabase" }
 supabase-gotrue = { group = "io.github.jan-tennert.supabase", name = "auth-kt" }
 supabase-postgrest = { group = "io.github.jan-tennert.supabase", name = "postgrest-kt" }
+
+# Credentials / Google Sign-In
+credentials = { group = "androidx.credentials", name = "credentials", version.ref = "credentials" }
+credentials-play-services = { group = "androidx.credentials", name = "credentials-play-services-auth", version.ref = "credentials" }
+googleid = { group = "com.google.android.libraries.identity.googleid", name = "googleid", version.ref = "googleid" }
 
 # Coroutines
 coroutines-core = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-core", version.ref = "coroutines" }
