@@ -10,6 +10,7 @@ import io.ktor.client.request.post
 import io.ktor.client.request.setBody
 import io.ktor.client.statement.bodyAsText
 import io.ktor.http.ContentType
+import io.ktor.http.HttpStatusCode
 import io.ktor.http.contentType
 import io.ktor.http.isSuccess
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -148,6 +149,8 @@ class SupabaseAuthRepository @Inject constructor(
                 }
                 _authState.value = AuthState.Authenticated
                 Result.success(Unit)
+            } else if (response.status == HttpStatusCode.TooManyRequests) {
+                Result.failure(Exception("Too many attempts. Please wait a moment and try again"))
             } else {
                 val errorBody = response.bodyAsText()
                 val rawMsg = try {

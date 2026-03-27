@@ -15,13 +15,16 @@ import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpStatusCode
 import io.ktor.http.headersOf
 import io.ktor.serialization.kotlinx.json.json
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.ExperimentalCoroutinesApi
-import kotlinx.coroutines.test.TestScope
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.runTest
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.jsonPrimitive
+import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Before
@@ -37,7 +40,7 @@ class SupabaseAuthRepositoryTest {
     val tempFolder = TemporaryFolder()
 
     private val testDispatcher = UnconfinedTestDispatcher()
-    private val testScope = TestScope(testDispatcher)
+    private val dataStoreScope = CoroutineScope(testDispatcher + Job())
     private val json = Json { ignoreUnknownKeys = true; isLenient = true }
 
     private lateinit var dataStore: DataStore<Preferences>
@@ -45,9 +48,14 @@ class SupabaseAuthRepositoryTest {
     @Before
     fun setup() {
         dataStore = PreferenceDataStoreFactory.create(
-            scope = testScope,
+            scope = dataStoreScope,
             produceFile = { File(tempFolder.newFolder(), "test_prefs.preferences_pb") }
         )
+    }
+
+    @After
+    fun tearDown() {
+        dataStoreScope.cancel()
     }
 
     private fun createRepository(
@@ -75,20 +83,20 @@ class SupabaseAuthRepositoryTest {
     }
 
     @Test
-    fun `initial auth state is Unknown`() = testScope.runTest {
+    fun `initial auth state is Unknown`() = runTest {
         val repo = createRepository()
         assertEquals(AuthState.Unknown, repo.authState.value)
     }
 
     @Test
-    fun `refreshAuthState sets Unauthenticated when no token`() = testScope.runTest {
+    fun `refreshAuthState sets Unauthenticated when no token`() = runTest {
         val repo = createRepository()
         repo.refreshAuthState()
         assertEquals(AuthState.Unauthenticated, repo.authState.value)
     }
 
     @Test
-    fun `refreshAuthState sets Authenticated when token exists`() = testScope.runTest {
+    fun `refreshAuthState sets Authenticated when token exists`() = runTest {
         dataStore.edit { it[SupabaseAuthRepository.ACCESS_TOKEN_KEY] = "existing-token" }
         val repo = createRepository()
         repo.refreshAuthState()
@@ -96,7 +104,7 @@ class SupabaseAuthRepositoryTest {
     }
 
     @Test
-    fun `signIn succeeds and stores tokens`() = testScope.runTest {
+    fun `signIn succeeds and stores tokens`() = runTest {
         seedConfig()
         val repo = createRepository()
         val result = repo.signIn("user@example.com", "password123")
@@ -105,7 +113,7 @@ class SupabaseAuthRepositoryTest {
     }
 
     @Test
-    fun `signIn fails with missing config`() = testScope.runTest {
+    fun `signIn fails with missing config`() = runTest {
         val repo = createRepository()
         val result = repo.signIn("user@example.com", "password123")
         assertTrue(result.isFailure)
@@ -113,7 +121,7 @@ class SupabaseAuthRepositoryTest {
     }
 
     @Test
-    fun `signIn fails with invalid credentials maps to friendly message`() = testScope.runTest {
+    fun `signIn fails with invalid credentials maps to friendly message`() = runTest {
         seedConfig()
         val repo = createRepository(
             statusCode = HttpStatusCode.BadRequest,
@@ -125,7 +133,7 @@ class SupabaseAuthRepositoryTest {
     }
 
     @Test
-    fun `signIn fails with email not confirmed maps to friendly message`() = testScope.runTest {
+    fun `signIn fails with email not confirmed maps to friendly message`() = runTest {
         seedConfig()
         val repo = createRepository(
             statusCode = HttpStatusCode.BadRequest,
@@ -137,7 +145,7 @@ class SupabaseAuthRepositoryTest {
     }
 
     @Test
-    fun `signIn fails with rate limit maps to friendly message`() = testScope.runTest {
+    fun `signIn fails with rate limit maps to friendly message`() = runTest {
         seedConfig()
         val repo = createRepository(
             statusCode = HttpStatusCode.TooManyRequests,
@@ -149,7 +157,7 @@ class SupabaseAuthRepositoryTest {
     }
 
     @Test
-    fun `signUp succeeds`() = testScope.runTest {
+    fun `signUp succeeds`() = runTest {
         seedConfig()
         val repo = createRepository()
         val result = repo.signUp("new@example.com", "password123")
@@ -158,7 +166,7 @@ class SupabaseAuthRepositoryTest {
     }
 
     @Test
-    fun `signUp fails with duplicate email maps to friendly message`() = testScope.runTest {
+    fun `signUp fails with duplicate email maps to friendly message`() = runTest {
         seedConfig()
         val repo = createRepository(
             statusCode = HttpStatusCode.UnprocessableEntity,
@@ -170,7 +178,7 @@ class SupabaseAuthRepositoryTest {
     }
 
     @Test
-    fun `signUp fails with weak password maps to friendly message`() = testScope.runTest {
+    fun `signUp fails with weak password maps to friendly message`() = runTest {
         seedConfig()
         val repo = createRepository(
             statusCode = HttpStatusCode.UnprocessableEntity,
@@ -182,7 +190,7 @@ class SupabaseAuthRepositoryTest {
     }
 
     @Test
-    fun `signInWithGoogle succeeds`() = testScope.runTest {
+    fun `signInWithGoogle succeeds`() = runTest {
         seedConfig()
         val repo = createRepository()
         val result = repo.signInWithGoogle("google-id-token")
@@ -191,7 +199,7 @@ class SupabaseAuthRepositoryTest {
     }
 
     @Test
-    fun `signOut clears tokens and sets Unauthenticated`() = testScope.runTest {
+    fun `signOut clears tokens and sets Unauthenticated`() = runTest {
         seedConfig()
         dataStore.edit {
             it[SupabaseAuthRepository.ACCESS_TOKEN_KEY] = "existing-token"
@@ -204,7 +212,7 @@ class SupabaseAuthRepositoryTest {
     }
 
     @Test
-    fun `signOut succeeds even on network error`() = testScope.runTest {
+    fun `signOut succeeds even on network error`() = runTest {
         // Create a repo with a failing engine
         val failingEngine = MockEngine { _ ->
             throw Exception("Network error")
@@ -226,7 +234,7 @@ class SupabaseAuthRepositoryTest {
     }
 
     @Test
-    fun `signIn fails with network error maps to friendly message`() = testScope.runTest {
+    fun `signIn fails with network error maps to friendly message`() = runTest {
         seedConfig()
         val failingEngine = MockEngine { _ ->
             throw java.net.UnknownHostException("Unable to resolve host")
@@ -241,7 +249,7 @@ class SupabaseAuthRepositoryTest {
     }
 
     @Test
-    fun `signIn fails with connect exception maps to friendly message`() = testScope.runTest {
+    fun `signIn fails with connect exception maps to friendly message`() = runTest {
         seedConfig()
         val failingEngine = MockEngine { _ ->
             throw java.net.ConnectException("Connection refused")
@@ -256,7 +264,7 @@ class SupabaseAuthRepositoryTest {
     }
 
     @Test
-    fun `signIn fails with socket timeout maps to friendly message`() = testScope.runTest {
+    fun `signIn fails with socket timeout maps to friendly message`() = runTest {
         seedConfig()
         val failingEngine = MockEngine { _ ->
             throw java.net.SocketTimeoutException("Read timed out")
@@ -271,7 +279,7 @@ class SupabaseAuthRepositoryTest {
     }
 
     @Test
-    fun `signIn fails with io exception maps to friendly message`() = testScope.runTest {
+    fun `signIn fails with io exception maps to friendly message`() = runTest {
         seedConfig()
         val failingEngine = MockEngine { _ ->
             throw java.io.IOException("Stream reset")
@@ -305,7 +313,7 @@ class SupabaseAuthRepositoryTest {
     }
 
     @Test
-    fun `signIn with password containing double quotes produces valid JSON`() = testScope.runTest {
+    fun `signIn with password containing double quotes produces valid JSON`() = runTest {
         seedConfig()
         val capturedBody = mutableListOf<String>()
         val repo = createRepositoryCapturingBody(capturedBody)
@@ -316,7 +324,7 @@ class SupabaseAuthRepositoryTest {
     }
 
     @Test
-    fun `signIn with password containing backslash produces valid JSON`() = testScope.runTest {
+    fun `signIn with password containing backslash produces valid JSON`() = runTest {
         seedConfig()
         val capturedBody = mutableListOf<String>()
         val repo = createRepositoryCapturingBody(capturedBody)
@@ -327,7 +335,7 @@ class SupabaseAuthRepositoryTest {
     }
 
     @Test
-    fun `signIn with password containing closing brace produces valid JSON`() = testScope.runTest {
+    fun `signIn with password containing closing brace produces valid JSON`() = runTest {
         seedConfig()
         val capturedBody = mutableListOf<String>()
         val repo = createRepositoryCapturingBody(capturedBody)
@@ -338,7 +346,7 @@ class SupabaseAuthRepositoryTest {
     }
 
     @Test
-    fun `signUp with special characters in email and password produces valid JSON`() = testScope.runTest {
+    fun `signUp with special characters in email and password produces valid JSON`() = runTest {
         seedConfig()
         val capturedBody = mutableListOf<String>()
         val repo = createRepositoryCapturingBody(capturedBody)
@@ -350,7 +358,7 @@ class SupabaseAuthRepositoryTest {
     }
 
     @Test
-    fun `signInWithGoogle with special characters in token produces valid JSON`() = testScope.runTest {
+    fun `signInWithGoogle with special characters in token produces valid JSON`() = runTest {
         seedConfig()
         val capturedBody = mutableListOf<String>()
         val repo = createRepositoryCapturingBody(capturedBody)
@@ -361,7 +369,7 @@ class SupabaseAuthRepositoryTest {
     }
 
     @Test
-    fun `auth state flow emits transitions`() = testScope.runTest {
+    fun `auth state flow emits transitions`() = runTest {
         seedConfig()
         val repo = createRepository()
 
