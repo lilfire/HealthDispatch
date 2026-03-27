@@ -101,6 +101,13 @@ class SupabaseAuthRepository @Inject constructor(
         )
     }
 
+    override suspend fun signInWithFacebook(accessToken: String): Result<Unit> {
+        return performAuth(
+            endpoint = "/auth/v1/token?grant_type=id_token",
+            body = json.encodeToString(AuthOAuthRequest.serializer(), AuthOAuthRequest(provider = "facebook", id_token = accessToken))
+        )
+    }
+
     override suspend fun signOut(): Result<Unit> {
         return try {
             val token = dataStore.data.map { it[ACCESS_TOKEN_KEY] }.first()

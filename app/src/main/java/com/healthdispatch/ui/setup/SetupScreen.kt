@@ -90,7 +90,8 @@ fun SetupScreen(
         onClearError = viewModel::clearError,
         onGoogleSignIn = viewModel::handleGoogleSignIn,
         googleClientId = viewModel.googleClientId,
-        onAppleSignIn = viewModel::handleAppleSignIn
+        onAppleSignIn = viewModel::handleAppleSignIn,
+        onFacebookSignIn = viewModel::handleFacebookSignIn
     )
 }
 
@@ -105,7 +106,8 @@ fun SetupScreenContent(
     onClearError: () -> Unit,
     onGoogleSignIn: (String) -> Unit = {},
     googleClientId: String = "",
-    onAppleSignIn: (String) -> Unit = {}
+    onAppleSignIn: (String) -> Unit = {},
+    onFacebookSignIn: (String) -> Unit = {}
 ) {
     val focusManager = LocalFocusManager.current
     val emailFocusRequester = remember { FocusRequester() }
@@ -385,6 +387,25 @@ fun SetupScreenContent(
                 ) {
                     Text(
                         text = "Sign in with Apple",
+                        fontWeight = FontWeight.Medium
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                // Facebook Sign-In button
+                OutlinedButton(
+                    onClick = {
+                        // TODO: Launch Facebook OAuth flow via browser/Custom Tab
+                        // and pass the returned access token to onFacebookSignIn()
+                    },
+                    enabled = !uiState.isLoading,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .defaultMinSize(minHeight = 48.dp)
+                ) {
+                    Text(
+                        text = "Sign in with Facebook",
                         fontWeight = FontWeight.Medium
                     )
                 }

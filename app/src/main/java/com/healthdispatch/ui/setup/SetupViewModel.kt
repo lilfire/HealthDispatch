@@ -150,6 +150,25 @@ class SetupViewModel @Inject constructor(
         }
     }
 
+    fun handleFacebookSignIn(accessToken: String) {
+        _uiState.update { it.copy(isLoading = true, errorMessage = null) }
+
+        viewModelScope.launch {
+            val result = authRepository.signInWithFacebook(accessToken)
+            result.onFailure { error ->
+                _uiState.update {
+                    it.copy(
+                        isLoading = false,
+                        errorMessage = error.message ?: "Facebook sign-in failed"
+                    )
+                }
+            }
+            result.onSuccess {
+                _uiState.update { it.copy(isLoading = false) }
+            }
+        }
+    }
+
     private fun validate(state: SetupUiState): String? {
         if (state.email.isBlank()) {
             return "Please enter your email address"

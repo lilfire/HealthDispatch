@@ -454,6 +454,58 @@ class SupabaseAuthRepositoryTest {
     }
 
     @Test
+    fun `signInWithFacebook succeeds`() = testScope.runTest {
+        seedConfig()
+        val repo = createRepository()
+        val result = repo.signInWithFacebook("facebook-access-token")
+        assertTrue(result.isSuccess)
+        assertEquals(AuthState.Authenticated, repo.authState.value)
+    }
+
+    @Test
+    fun `signInWithFacebook sends correct provider and token`() = testScope.runTest {
+        seedConfig()
+        val capturedBody = mutableListOf<String>()
+        val repo = createRepositoryCapturingBody(capturedBody)
+        val result = repo.signInWithFacebook("fb-token-123")
+        assertTrue(result.isSuccess)
+        val parsed = json.decodeFromString<JsonObject>(capturedBody.first())
+        assertEquals("facebook", parsed["provider"]?.jsonPrimitive?.content)
+        assertEquals("fb-token-123", parsed["id_token"]?.jsonPrimitive?.content)
+    }
+
+    @Test
+    fun `signInWithFacebook fails with missing config`() = testScope.runTest {
+        val repo = createRepository()
+        val result = repo.signInWithFacebook("facebook-access-token")
+        assertTrue(result.isFailure)
+        assertEquals("Supabase URL and API Key must be configured", result.exceptionOrNull()?.message)
+    }
+
+    @Test
+    fun `signInWithFacebook fails with server error`() = testScope.runTest {
+        seedConfig()
+        val repo = createRepository(
+            statusCode = HttpStatusCode.BadRequest,
+            responseBody = """{"error":"invalid_grant","error_description":"Invalid login credentials"}"""
+        )
+        val result = repo.signInWithFacebook("bad-fb-token")
+        assertTrue(result.isFailure)
+        assertEquals("The email or password you entered is incorrect", result.exceptionOrNull()?.message)
+    }
+
+    @Test
+    fun `signInWithFacebook with special characters in token produces valid JSON`() = testScope.runTest {
+        seedConfig()
+        val capturedBody = mutableListOf<String>()
+        val repo = createRepositoryCapturingBody(capturedBody)
+        val result = repo.signInWithFacebook("""token"with\special}chars""")
+        assertTrue(result.isSuccess)
+        val parsed = json.decodeFromString<JsonObject>(capturedBody.first())
+        assertEquals("""token"with\special}chars""", parsed["id_token"]?.jsonPrimitive?.content)
+    }
+
+    @Test
     fun `signInWithGoogle with special characters in token produces valid JSON`() = testScope.runTest {
         seedConfig()
         val capturedBody = mutableListOf<String>()
