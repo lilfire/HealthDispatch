@@ -220,22 +220,59 @@ class SetupViewModelTest {
     }
 
     @Test
-    fun `handleGoogleSignIn calls repository with token`() = runTest {
-        coEvery { authRepository.signInWithGoogle(any()) } returns Result.success(Unit)
+    fun `handleGoogleSignIn calls repository with token and nonce`() = runTest {
+        coEvery { authRepository.signInWithGoogle(any(), any()) } returns Result.success(Unit)
         val vm = createViewModel()
-        vm.handleGoogleSignIn("google-id-token-123")
+        vm.handleGoogleSignIn("google-id-token-123", "raw-nonce")
         advanceUntilIdle()
-        coVerify { authRepository.signInWithGoogle("google-id-token-123") }
+        coVerify { authRepository.signInWithGoogle("google-id-token-123", "raw-nonce") }
     }
 
     @Test
     fun `handleGoogleSignIn failure shows error`() = runTest {
-        coEvery { authRepository.signInWithGoogle(any()) } returns
+        coEvery { authRepository.signInWithGoogle(any(), any()) } returns
             Result.failure(Exception("Google sign-in failed"))
         val vm = createViewModel()
-        vm.handleGoogleSignIn("bad-token")
+        vm.handleGoogleSignIn("bad-token", "nonce")
         advanceUntilIdle()
         assertEquals("Google sign-in failed", vm.uiState.value.errorMessage)
+    }
+
+    @Test
+    fun `handleGoogleSignIn sets loading state during sign-in`() = runTest {
+        coEvery { authRepository.signInWithGoogle(any(), any()) } coAnswers {
+            kotlinx.coroutines.delay(1000)
+            Result.success(Unit)
+        }
+        val vm = createViewModel()
+
+        vm.uiState.test {
+            awaitItem() // initial state
+
+            vm.handleGoogleSignIn("token", "nonce")
+            val loadingState = awaitItem()
+            assertTrue(loadingState.isLoading)
+            assertNull(loadingState.errorMessage)
+
+            advanceUntilIdle()
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test
+    fun `handleGoogleSignInError sets error message from exception`() = runTest {
+        val vm = createViewModel()
+        vm.handleGoogleSignInError(Exception("Credential Manager error"))
+        assertEquals("Credential Manager error", vm.uiState.value.errorMessage)
+        assertFalse(vm.uiState.value.isLoading)
+    }
+
+    @Test
+    fun `handleGoogleSignInError with null message shows generic error`() = runTest {
+        val vm = createViewModel()
+        vm.handleGoogleSignInError(Exception())
+        assertEquals("Google sign-in failed. Please try again", vm.uiState.value.errorMessage)
+        assertFalse(vm.uiState.value.isLoading)
     }
 
     @Test

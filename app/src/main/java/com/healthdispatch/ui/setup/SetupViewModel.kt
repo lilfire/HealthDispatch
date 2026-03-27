@@ -106,11 +106,11 @@ class SetupViewModel @Inject constructor(
         }
     }
 
-    fun handleGoogleSignIn(idToken: String) {
+    fun handleGoogleSignIn(idToken: String, nonce: String) {
         _uiState.update { it.copy(isLoading = true, errorMessage = null) }
 
         viewModelScope.launch {
-            val result = authRepository.signInWithGoogle(idToken)
+            val result = authRepository.signInWithGoogle(idToken, nonce)
             result.onFailure { error ->
                 _uiState.update {
                     it.copy(
@@ -122,6 +122,15 @@ class SetupViewModel @Inject constructor(
             result.onSuccess {
                 _uiState.update { it.copy(isLoading = false) }
             }
+        }
+    }
+
+    fun handleGoogleSignInError(error: Exception) {
+        _uiState.update {
+            it.copy(
+                isLoading = false,
+                errorMessage = error.message ?: "Google sign-in failed. Please try again"
+            )
         }
     }
 

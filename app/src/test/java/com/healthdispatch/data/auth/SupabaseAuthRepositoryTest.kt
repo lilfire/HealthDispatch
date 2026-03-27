@@ -185,9 +185,34 @@ class SupabaseAuthRepositoryTest {
     fun `signInWithGoogle succeeds`() = testScope.runTest {
         seedConfig()
         val repo = createRepository()
-        val result = repo.signInWithGoogle("google-id-token")
+        val result = repo.signInWithGoogle("google-id-token", "raw-nonce-123")
         assertTrue(result.isSuccess)
         assertEquals(AuthState.Authenticated, repo.authState.value)
+    }
+
+    @Test
+    fun `signInWithGoogle sends nonce in request body`() = testScope.runTest {
+        seedConfig()
+        val capturedBody = mutableListOf<String>()
+        val repo = createRepositoryCapturingBody(capturedBody)
+        repo.signInWithGoogle("google-id-token", "raw-nonce-value")
+        assertTrue(capturedBody.isNotEmpty())
+        val parsed = json.decodeFromString<JsonObject>(capturedBody.first())
+        assertEquals("raw-nonce-value", parsed["nonce"]?.jsonPrimitive?.content)
+        assertEquals("google-id-token", parsed["id_token"]?.jsonPrimitive?.content)
+        assertEquals("google", parsed["provider"]?.jsonPrimitive?.content)
+    }
+
+    @Test
+    fun `signInWithGoogle fails with server error`() = testScope.runTest {
+        seedConfig()
+        val repo = createRepository(
+            statusCode = HttpStatusCode.BadRequest,
+            responseBody = """{"error":"invalid_grant","error_description":"Invalid ID token"}"""
+        )
+        val result = repo.signInWithGoogle("bad-token", "nonce")
+        assertTrue(result.isFailure)
+        assertEquals("Invalid ID token", result.exceptionOrNull()?.message)
     }
 
     @Test
@@ -354,7 +379,7 @@ class SupabaseAuthRepositoryTest {
         seedConfig()
         val capturedBody = mutableListOf<String>()
         val repo = createRepositoryCapturingBody(capturedBody)
-        val result = repo.signInWithGoogle("""token"with\special}chars""")
+        val result = repo.signInWithGoogle("""token"with\special}chars""", "nonce")
         assertTrue(result.isSuccess)
         val parsed = json.decodeFromString<JsonObject>(capturedBody.first())
         assertEquals("""token"with\special}chars""", parsed["id_token"]?.jsonPrimitive?.content)

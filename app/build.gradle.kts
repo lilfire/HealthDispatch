@@ -16,6 +16,7 @@ val localProperties = java.util.Properties().apply {
 
 val supabaseUrl: String = localProperties.getProperty("SUPABASE_URL", "https://your-project.supabase.co")
 val supabaseAnonKey: String = localProperties.getProperty("SUPABASE_ANON_KEY", "your-anon-key")
+val googleClientId: String = localProperties.getProperty("GOOGLE_CLIENT_ID", System.getenv("GOOGLE_CLIENT_ID") ?: "")
 
 android {
     namespace = "com.healthdispatch"
@@ -32,6 +33,7 @@ android {
 
         buildConfigField("String", "SUPABASE_URL", "\"$supabaseUrl\"")
         buildConfigField("String", "SUPABASE_ANON_KEY", "\"$supabaseAnonKey\"")
+        buildConfigField("String", "GOOGLE_CLIENT_ID", "\"$googleClientId\"")
     }
 
     signingConfigs {
@@ -96,6 +98,11 @@ dependencies {
     // Core
     implementation(libs.core.ktx)
     implementation(libs.datastore.preferences)
+
+    // Credentials / Google Sign-In
+    implementation(libs.credentials)
+    implementation(libs.credentials.play.services)
+    implementation(libs.googleid)
 
     // Health Connect
     implementation(libs.health.connect)
