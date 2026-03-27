@@ -8,7 +8,6 @@ import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
-import androidx.compose.ui.test.performTextInput
 import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
@@ -23,89 +22,81 @@ class SetupScreenTest {
     @get:Rule
     val composeTestRule = createComposeRule()
 
+    private fun setContent(uiState: SetupUiState = SetupUiState(), callbacks: TestCallbacks = TestCallbacks()) {
+        composeTestRule.setContent {
+            SetupScreenContent(
+                uiState = uiState,
+                onEmailChange = callbacks.onEmailChange,
+                onPasswordChange = callbacks.onPasswordChange,
+                onConfirmPasswordChange = callbacks.onConfirmPasswordChange,
+                onToggleMode = callbacks.onToggleMode,
+                onSubmit = callbacks.onSubmit,
+                onClearError = callbacks.onClearError
+            )
+        }
+    }
+
     @Test
     fun setupScreen_displaysBothInputFields() {
-        composeTestRule.setContent {
-            SetupScreen(onSetupComplete = {})
-        }
-        composeTestRule.onNode(hasText("Supabase URL") and hasSetTextAction())
+        setContent()
+        composeTestRule.onNode(hasText("Email") and hasSetTextAction())
             .assertIsDisplayed()
-        composeTestRule.onNode(hasText("Supabase API Key") and hasSetTextAction())
+        composeTestRule.onNode(hasText("Password") and hasSetTextAction())
             .assertIsDisplayed()
     }
 
     @Test
     fun setupScreen_displaysTitle() {
-        composeTestRule.setContent {
-            SetupScreen(onSetupComplete = {})
-        }
+        setContent()
         composeTestRule.onNodeWithText("HealthDispatch").assertIsDisplayed()
-        composeTestRule.onNodeWithText("Configure your cloud endpoint").assertIsDisplayed()
+        composeTestRule.onNodeWithText("Sign in to your account").assertIsDisplayed()
     }
 
     @Test
-    fun setupScreen_buttonDisabledWhenFieldsBlank() {
-        composeTestRule.setContent {
-            SetupScreen(onSetupComplete = {})
-        }
-        composeTestRule.onNodeWithText("Connect & Start Syncing").assertIsNotEnabled()
+    fun setupScreen_signInButtonEnabledByDefault() {
+        setContent()
+        composeTestRule.onNodeWithText("Sign In").assertIsEnabled()
     }
 
     @Test
-    fun setupScreen_buttonDisabledWhenOnlyUrlFilled() {
-        composeTestRule.setContent {
-            SetupScreen(onSetupComplete = {})
-        }
-        composeTestRule.onNode(hasText("Supabase URL") and hasSetTextAction())
-            .performTextInput("https://test.supabase.co")
-        composeTestRule.onNodeWithText("Connect & Start Syncing").assertIsNotEnabled()
+    fun setupScreen_signInButtonDisabledWhenLoading() {
+        setContent(uiState = SetupUiState(isLoading = true))
+        composeTestRule.onNodeWithText("Sign In").assertDoesNotExist()
     }
 
     @Test
-    fun setupScreen_buttonDisabledWhenOnlyKeyFilled() {
-        composeTestRule.setContent {
-            SetupScreen(onSetupComplete = {})
-        }
-        composeTestRule.onNode(hasText("Supabase API Key") and hasSetTextAction())
-            .performTextInput("test-api-key")
-        composeTestRule.onNodeWithText("Connect & Start Syncing").assertIsNotEnabled()
+    fun setupScreen_showsSignUpSubtitleInSignUpMode() {
+        setContent(uiState = SetupUiState(isSignUpMode = true))
+        composeTestRule.onNodeWithText("Create your account").assertIsDisplayed()
     }
 
     @Test
-    fun setupScreen_buttonEnabledWhenBothFieldsFilled() {
-        composeTestRule.setContent {
-            SetupScreen(onSetupComplete = {})
-        }
-        composeTestRule.onNode(hasText("Supabase URL") and hasSetTextAction())
-            .performTextInput("https://test.supabase.co")
-        composeTestRule.onNode(hasText("Supabase API Key") and hasSetTextAction())
-            .performTextInput("test-api-key")
-        composeTestRule.onNodeWithText("Connect & Start Syncing").assertIsEnabled()
+    fun setupScreen_showsCreateAccountButtonInSignUpMode() {
+        setContent(uiState = SetupUiState(isSignUpMode = true))
+        composeTestRule.onNodeWithText("Create Account").assertIsDisplayed()
     }
 
     @Test
-    fun setupScreen_buttonClickTriggersCallback() {
-        var callbackInvoked = false
-        composeTestRule.setContent {
-            SetupScreen(onSetupComplete = { callbackInvoked = true })
-        }
-        composeTestRule.onNode(hasText("Supabase URL") and hasSetTextAction())
-            .performTextInput("https://test.supabase.co")
-        composeTestRule.onNode(hasText("Supabase API Key") and hasSetTextAction())
-            .performTextInput("test-api-key")
-        composeTestRule.onNodeWithText("Connect & Start Syncing").performClick()
-        assertTrue("onSetupComplete callback should have been invoked", callbackInvoked)
+    fun setupScreen_submitButtonTriggersCallback() {
+        var submitInvoked = false
+        val callbacks = TestCallbacks(onSubmit = { submitInvoked = true })
+        setContent(callbacks = callbacks)
+        composeTestRule.onNodeWithText("Sign In").performClick()
+        assertTrue("onSubmit callback should have been invoked", submitInvoked)
     }
 
     @Test
-    fun setupScreen_buttonDisabledWhenFieldsContainOnlySpaces() {
-        composeTestRule.setContent {
-            SetupScreen(onSetupComplete = {})
-        }
-        composeTestRule.onNode(hasText("Supabase URL") and hasSetTextAction())
-            .performTextInput("   ")
-        composeTestRule.onNode(hasText("Supabase API Key") and hasSetTextAction())
-            .performTextInput("   ")
-        composeTestRule.onNodeWithText("Connect & Start Syncing").assertIsNotEnabled()
+    fun setupScreen_displaysErrorMessage() {
+        setContent(uiState = SetupUiState(errorMessage = "Invalid credentials"))
+        composeTestRule.onNodeWithText("Invalid credentials").assertIsDisplayed()
     }
+
+    private data class TestCallbacks(
+        val onEmailChange: (String) -> Unit = {},
+        val onPasswordChange: (String) -> Unit = {},
+        val onConfirmPasswordChange: (String) -> Unit = {},
+        val onToggleMode: () -> Unit = {},
+        val onSubmit: () -> Unit = {},
+        val onClearError: () -> Unit = {}
+    )
 }
