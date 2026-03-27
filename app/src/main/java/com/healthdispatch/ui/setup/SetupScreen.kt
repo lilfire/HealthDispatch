@@ -1,6 +1,5 @@
 package com.healthdispatch.ui.setup
 
-import android.util.Log
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -70,8 +69,6 @@ import com.healthdispatch.BuildConfig
 import kotlinx.coroutines.launch
 import java.security.MessageDigest
 import java.util.UUID
-
-private const val TAG = "SetupScreen"
 
 @Composable
 fun SetupScreen(
@@ -471,11 +468,9 @@ internal suspend fun launchGoogleSignIn(
         val idToken = googleIdTokenCredential.idToken
 
         onSuccess(idToken, rawNonce)
-    } catch (e: GetCredentialCancellationException) {
-        Log.d(TAG, "Google sign-in cancelled by user")
+    } catch (_: GetCredentialCancellationException) {
         // User cancelled -- no error to surface
     } catch (e: Exception) {
-        Log.e(TAG, "Google sign-in failed", e)
         onError(Exception("Google sign-in failed. Please try again"))
     }
 }

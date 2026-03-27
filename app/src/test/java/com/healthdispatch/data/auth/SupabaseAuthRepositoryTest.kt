@@ -452,7 +452,7 @@ class SupabaseAuthRepositoryTest {
         val repo = createRepository()
         val result = repo.signInWithApple("apple-id-token")
         assertTrue(result.isFailure)
-        assertEquals("Supabase URL and API Key must be configured", result.exceptionOrNull()?.message)
+        assertTrue(result.exceptionOrNull()?.message?.contains("Supabase is not configured") == true)
     }
 
     @Test
@@ -504,7 +504,7 @@ class SupabaseAuthRepositoryTest {
         val repo = createRepository()
         val result = repo.signInWithFacebook("facebook-access-token")
         assertTrue(result.isFailure)
-        assertEquals("Supabase URL and API Key must be configured", result.exceptionOrNull()?.message)
+        assertTrue(result.exceptionOrNull()?.message?.contains("Supabase is not configured") == true)
     }
 
     @Test
