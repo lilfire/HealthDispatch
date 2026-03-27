@@ -5,15 +5,15 @@ import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.preferencesDataStore
 import androidx.room.Room
-import com.healthdispatch.BuildConfig
 import com.healthdispatch.data.auth.AuthClient
 import com.healthdispatch.data.auth.AuthRepository
 import com.healthdispatch.data.auth.SupabaseAuthClient
 import com.healthdispatch.data.auth.SupabaseAuthRepository
 import com.healthdispatch.data.cloud.AuthSessionProvider
-import com.healthdispatch.data.cloud.CloudConfig
 import com.healthdispatch.data.cloud.PostgrestClientWrapper
 import com.healthdispatch.data.cloud.SupabaseAuthSessionProvider
+import com.healthdispatch.data.cloud.SupabaseManagementApi
+import com.healthdispatch.data.cloud.SupabaseManagementApiImpl
 import com.healthdispatch.data.cloud.SupabasePostgrestClientWrapper
 import com.healthdispatch.data.local.PendingSyncDao
 import com.healthdispatch.data.local.SyncDatabase
@@ -60,9 +60,11 @@ object AppModule {
     @Provides
     @Singleton
     fun provideSupabaseClient(): SupabaseClient {
+        // Placeholder client — will be reconfigured at runtime when user
+        // completes the cloud setup wizard and credentials are stored in DataStore.
         return createSupabaseClient(
-            supabaseUrl = BuildConfig.SUPABASE_URL,
-            supabaseKey = BuildConfig.SUPABASE_ANON_KEY
+            supabaseUrl = "https://placeholder.supabase.co",
+            supabaseKey = "placeholder"
         ) {
             install(Auth)
             install(Postgrest)
@@ -102,6 +104,15 @@ object AppModule {
         json: Json
     ): AuthRepository {
         return SupabaseAuthRepository(httpClient, dataStore, json)
+    }
+
+    @Provides
+    @Singleton
+    fun provideSupabaseManagementApi(
+        httpClient: HttpClient,
+        json: Json
+    ): SupabaseManagementApi {
+        return SupabaseManagementApiImpl(httpClient, json)
     }
 }
 

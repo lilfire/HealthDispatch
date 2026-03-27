@@ -4,7 +4,6 @@ import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
-import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -22,8 +21,6 @@ enum class PathChoice { CONNECT_EXISTING, SETUP_NEW, SKIP }
 data class OnboardingState(
     val currentStep: OnboardingStep = OnboardingStep.WELCOME,
     val pathChoice: PathChoice? = null,
-    val supabaseUrl: String = "",
-    val supabaseKey: String = "",
     val permissionsGranted: Boolean = false,
     val isComplete: Boolean = false
 )
@@ -77,25 +74,8 @@ class OnboardingViewModel @Inject constructor(
         _state.update { it.copy(pathChoice = choice) }
     }
 
-    fun setSupabaseUrl(url: String) {
-        _state.update { it.copy(supabaseUrl = url) }
-    }
-
-    fun setSupabaseKey(key: String) {
-        _state.update { it.copy(supabaseKey = key) }
-    }
-
     fun setPermissionsGranted(granted: Boolean) {
         _state.update { it.copy(permissionsGranted = granted) }
-    }
-
-    fun saveCloudConfig() {
-        viewModelScope.launch {
-            dataStore.edit { prefs ->
-                prefs[SUPABASE_URL_KEY] = _state.value.supabaseUrl
-                prefs[SUPABASE_API_KEY] = _state.value.supabaseKey
-            }
-        }
     }
 
     fun completeOnboarding() {
@@ -108,8 +88,6 @@ class OnboardingViewModel @Inject constructor(
     }
 
     companion object {
-        val SUPABASE_URL_KEY = stringPreferencesKey("supabase_url")
-        val SUPABASE_API_KEY = stringPreferencesKey("supabase_api_key")
         val ONBOARDING_COMPLETE_KEY = booleanPreferencesKey("onboarding_complete")
     }
 }

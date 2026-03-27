@@ -142,17 +142,5 @@ dependencies {
     androidTestImplementation(libs.compose.ui.test)
 }
 
-tasks.register("validateSupabaseConfig") {
-    doLast {
-        require(supabaseUrl != "https://your-project.supabase.co") {
-            "SUPABASE_URL is not configured. Set SUPABASE_URL in local.properties (e.g. SUPABASE_URL=https://abc123.supabase.co)"
-        }
-        require(supabaseAnonKey != "your-anon-key") {
-            "SUPABASE_ANON_KEY is not configured. Set SUPABASE_ANON_KEY in local.properties"
-        }
-    }
-}
-
-tasks.matching { it.name.startsWith("assemble") || it.name.startsWith("install") }.configureEach {
-    dependsOn("validateSupabaseConfig")
-}
+// Supabase config validation removed — credentials are now obtained at runtime
+// via the in-app cloud setup wizard (SupabaseManagementApi).
