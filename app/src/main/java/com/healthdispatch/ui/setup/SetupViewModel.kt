@@ -2,6 +2,7 @@ package com.healthdispatch.ui.setup
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.healthdispatch.BuildConfig
 import com.healthdispatch.data.auth.AuthRepository
 import com.healthdispatch.data.auth.AuthState
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -20,7 +21,8 @@ data class SetupUiState(
     val confirmPassword: String = "",
     val isSignUpMode: Boolean = false,
     val isLoading: Boolean = false,
-    val errorMessage: String? = null
+    val errorMessage: String? = null,
+    val googleSignInAvailable: Boolean = false
 )
 
 @HiltViewModel
@@ -28,7 +30,11 @@ class SetupViewModel @Inject constructor(
     private val authRepository: AuthRepository
 ) : ViewModel() {
 
-    private val _uiState = MutableStateFlow(SetupUiState())
+    val googleClientId: String = BuildConfig.GOOGLE_CLIENT_ID
+
+    private val _uiState = MutableStateFlow(
+        SetupUiState(googleSignInAvailable = googleClientId.isNotBlank())
+    )
     val uiState: StateFlow<SetupUiState> = _uiState.asStateFlow()
 
     private val _authSuccessEvent = Channel<Boolean>(Channel.BUFFERED)

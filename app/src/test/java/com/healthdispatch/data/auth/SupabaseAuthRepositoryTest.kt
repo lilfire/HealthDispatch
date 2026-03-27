@@ -60,7 +60,9 @@ class SupabaseAuthRepositoryTest {
 
     private fun createRepository(
         statusCode: HttpStatusCode = HttpStatusCode.OK,
-        responseBody: String = """{"access_token":"test-token","refresh_token":"test-refresh","token_type":"bearer","expires_in":3600}"""
+        responseBody: String = """{"access_token":"test-token","refresh_token":"test-refresh","token_type":"bearer","expires_in":3600}""",
+        supabaseUrl: String = "",
+        supabaseApiKey: String = ""
     ): SupabaseAuthRepository {
         val mockEngine = MockEngine { request ->
             respond(
@@ -72,7 +74,7 @@ class SupabaseAuthRepositoryTest {
         val httpClient = HttpClient(mockEngine) {
             install(ContentNegotiation) { json(json) }
         }
-        return SupabaseAuthRepository(httpClient, dataStore, json)
+        return SupabaseAuthRepository(httpClient, dataStore, json, supabaseUrl, supabaseApiKey)
     }
 
     private suspend fun seedConfig() {
@@ -117,7 +119,49 @@ class SupabaseAuthRepositoryTest {
         val repo = createRepository()
         val result = repo.signIn("user@example.com", "password123")
         assertTrue(result.isFailure)
-        assertEquals("Supabase URL and API Key must be configured", result.exceptionOrNull()?.message)
+        assertTrue(result.exceptionOrNull()?.message?.contains("Supabase is not configured") == true)
+    }
+
+    @Test
+    fun `signIn succeeds with BuildConfig fallback when DataStore is empty`() = testScope.runTest {
+        val repo = createRepository(
+            supabaseUrl = "https://buildconfig.supabase.co",
+            supabaseApiKey = "buildconfig-key"
+        )
+        val result = repo.signIn("user@example.com", "password123")
+        assertTrue(result.isSuccess)
+        assertEquals(AuthState.Authenticated, repo.authState.value)
+    }
+
+    @Test
+    fun `signIn fails with placeholder defaults`() = testScope.runTest {
+        val repo = createRepository(
+            supabaseUrl = "https://your-project.supabase.co",
+            supabaseApiKey = "your-anon-key"
+        )
+        val result = repo.signIn("user@example.com", "password123")
+        assertTrue(result.isFailure)
+        assertTrue(result.exceptionOrNull()?.message?.contains("Supabase is not configured") == true)
+    }
+
+    @Test
+    fun `DataStore config takes priority over BuildConfig`() = testScope.runTest {
+        seedConfig()
+        val capturedBody = mutableListOf<String>()
+        val mockEngine = MockEngine { request ->
+            capturedBody.add(request.url.toString())
+            respond(
+                content = """{"access_token":"t","refresh_token":"r","token_type":"bearer","expires_in":3600}""",
+                status = HttpStatusCode.OK,
+                headers = headersOf(HttpHeaders.ContentType, ContentType.Application.Json.toString())
+            )
+        }
+        val httpClient = HttpClient(mockEngine) {
+            install(ContentNegotiation) { json(json) }
+        }
+        val repo = SupabaseAuthRepository(httpClient, dataStore, json, "https://fallback.supabase.co", "fallback-key")
+        repo.signIn("user@example.com", "password123")
+        assertTrue(capturedBody.first().startsWith("https://test.supabase.co"))
     }
 
     @Test
@@ -309,7 +353,7 @@ class SupabaseAuthRepositoryTest {
         val httpClient = HttpClient(mockEngine) {
             install(ContentNegotiation) { json(json) }
         }
-        return SupabaseAuthRepository(httpClient, dataStore, json)
+        return SupabaseAuthRepository(httpClient, dataStore, json, "", "")
     }
 
     @Test
