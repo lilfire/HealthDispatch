@@ -48,7 +48,7 @@ data class AuthCredentialsRequest(
 data class AuthOAuthRequest(
     val provider: String,
     val id_token: String,
-    val nonce: String
+    val nonce: String = ""
 )
 
 @Singleton

@@ -123,7 +123,7 @@ class SupabaseAuthRepositoryTest {
     }
 
     @Test
-    fun `signIn succeeds with BuildConfig fallback when DataStore is empty`() = testScope.runTest {
+    fun `signIn succeeds with BuildConfig fallback when DataStore is empty`() = runTest {
         val repo = createRepository(
             supabaseUrl = "https://buildconfig.supabase.co",
             supabaseApiKey = "buildconfig-key"
@@ -134,7 +134,7 @@ class SupabaseAuthRepositoryTest {
     }
 
     @Test
-    fun `signIn fails with placeholder defaults`() = testScope.runTest {
+    fun `signIn fails with placeholder defaults`() = runTest {
         val repo = createRepository(
             supabaseUrl = "https://your-project.supabase.co",
             supabaseApiKey = "your-anon-key"
@@ -145,7 +145,7 @@ class SupabaseAuthRepositoryTest {
     }
 
     @Test
-    fun `DataStore config takes priority over BuildConfig`() = testScope.runTest {
+    fun `DataStore config takes priority over BuildConfig`() = runTest {
         seedConfig()
         val capturedBody = mutableListOf<String>()
         val mockEngine = MockEngine { request ->
@@ -243,7 +243,7 @@ class SupabaseAuthRepositoryTest {
     }
 
     @Test
-    fun `signInWithGoogle sends nonce in request body`() = testScope.runTest {
+    fun `signInWithGoogle sends nonce in request body`() = runTest {
         seedConfig()
         val capturedBody = mutableListOf<String>()
         val repo = createRepositoryCapturingBody(capturedBody)
@@ -256,7 +256,7 @@ class SupabaseAuthRepositoryTest {
     }
 
     @Test
-    fun `signInWithGoogle fails with server error`() = testScope.runTest {
+    fun `signInWithGoogle fails with server error`() = runTest {
         seedConfig()
         val repo = createRepository(
             statusCode = HttpStatusCode.BadRequest,
@@ -427,7 +427,7 @@ class SupabaseAuthRepositoryTest {
     }
 
     @Test
-    fun `signInWithApple succeeds`() = testScope.runTest {
+    fun `signInWithApple succeeds`() = runTest {
         seedConfig()
         val repo = createRepository()
         val result = repo.signInWithApple("apple-id-token")
@@ -436,7 +436,7 @@ class SupabaseAuthRepositoryTest {
     }
 
     @Test
-    fun `signInWithApple sends correct provider and token`() = testScope.runTest {
+    fun `signInWithApple sends correct provider and token`() = runTest {
         seedConfig()
         val capturedBody = mutableListOf<String>()
         val repo = createRepositoryCapturingBody(capturedBody)
@@ -448,7 +448,7 @@ class SupabaseAuthRepositoryTest {
     }
 
     @Test
-    fun `signInWithApple fails with missing config`() = testScope.runTest {
+    fun `signInWithApple fails with missing config`() = runTest {
         val repo = createRepository()
         val result = repo.signInWithApple("apple-id-token")
         assertTrue(result.isFailure)
@@ -456,7 +456,7 @@ class SupabaseAuthRepositoryTest {
     }
 
     @Test
-    fun `signInWithApple fails with server error`() = testScope.runTest {
+    fun `signInWithApple fails with server error`() = runTest {
         seedConfig()
         val repo = createRepository(
             statusCode = HttpStatusCode.BadRequest,
@@ -468,7 +468,7 @@ class SupabaseAuthRepositoryTest {
     }
 
     @Test
-    fun `signInWithApple with special characters in token produces valid JSON`() = testScope.runTest {
+    fun `signInWithApple with special characters in token produces valid JSON`() = runTest {
         seedConfig()
         val capturedBody = mutableListOf<String>()
         val repo = createRepositoryCapturingBody(capturedBody)
@@ -479,7 +479,7 @@ class SupabaseAuthRepositoryTest {
     }
 
     @Test
-    fun `signInWithFacebook succeeds`() = testScope.runTest {
+    fun `signInWithFacebook succeeds`() = runTest {
         seedConfig()
         val repo = createRepository()
         val result = repo.signInWithFacebook("facebook-access-token")
@@ -488,7 +488,7 @@ class SupabaseAuthRepositoryTest {
     }
 
     @Test
-    fun `signInWithFacebook sends correct provider and token`() = testScope.runTest {
+    fun `signInWithFacebook sends correct provider and token`() = runTest {
         seedConfig()
         val capturedBody = mutableListOf<String>()
         val repo = createRepositoryCapturingBody(capturedBody)
@@ -500,7 +500,7 @@ class SupabaseAuthRepositoryTest {
     }
 
     @Test
-    fun `signInWithFacebook fails with missing config`() = testScope.runTest {
+    fun `signInWithFacebook fails with missing config`() = runTest {
         val repo = createRepository()
         val result = repo.signInWithFacebook("facebook-access-token")
         assertTrue(result.isFailure)
@@ -508,7 +508,7 @@ class SupabaseAuthRepositoryTest {
     }
 
     @Test
-    fun `signInWithFacebook fails with server error`() = testScope.runTest {
+    fun `signInWithFacebook fails with server error`() = runTest {
         seedConfig()
         val repo = createRepository(
             statusCode = HttpStatusCode.BadRequest,
@@ -520,7 +520,7 @@ class SupabaseAuthRepositoryTest {
     }
 
     @Test
-    fun `signInWithFacebook with special characters in token produces valid JSON`() = testScope.runTest {
+    fun `signInWithFacebook with special characters in token produces valid JSON`() = runTest {
         seedConfig()
         val capturedBody = mutableListOf<String>()
         val repo = createRepositoryCapturingBody(capturedBody)
@@ -531,7 +531,7 @@ class SupabaseAuthRepositoryTest {
     }
 
     @Test
-    fun `signInWithGoogle with special characters in token produces valid JSON`() = testScope.runTest {
+    fun `signInWithGoogle with special characters in token produces valid JSON`() = runTest {
         seedConfig()
         val capturedBody = mutableListOf<String>()
         val repo = createRepositoryCapturingBody(capturedBody)
