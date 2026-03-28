@@ -46,9 +46,9 @@ class FirestoreHealthRepository @Inject constructor(
         return element.mapValues { (_, value) ->
             val primitive = value.jsonPrimitive
             when {
-                primitive.longOrNull != null -> primitive.long
-                primitive.doubleOrNull != null -> primitive.double
-                primitive.booleanOrNull != null -> primitive.boolean
+                primitive.longOrNull != null -> primitive.longOrNull!!
+                primitive.doubleOrNull != null -> primitive.doubleOrNull!!
+                primitive.booleanOrNull != null -> primitive.booleanOrNull!!
                 else -> primitive.content
             }
         }

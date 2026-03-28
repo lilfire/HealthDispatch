@@ -61,7 +61,7 @@ class SyncLogicTest {
 
         syncLogic.syncPendingRecords()
 
-        coVerify { pendingSyncDao.updateStatus(1, SyncStatus.SYNCED) }
+        coVerify { pendingSyncDao.updateStatus(1, SyncStatus.SYNCED, any(), null) }
     }
 
     @Test
@@ -74,7 +74,7 @@ class SyncLogicTest {
 
         syncLogic.syncPendingRecords()
 
-        coVerify { pendingSyncDao.updateStatus(1, SyncStatus.FAILED, error = "fail") }
+        coVerify { pendingSyncDao.updateStatus(1, SyncStatus.FAILED, any(), "fail") }
     }
 
     @Test
@@ -87,7 +87,7 @@ class SyncLogicTest {
 
         syncLogic.syncPendingRecords()
 
-        coVerify { pendingSyncDao.updateStatus(1, SyncStatus.PENDING, error = "fail") }
+        coVerify { pendingSyncDao.updateStatus(1, SyncStatus.PENDING, any(), "fail") }
     }
 
     @Test

@@ -21,7 +21,7 @@ import org.robolectric.annotation.Config
  * Alternatively, migrate to androidTest/ as instrumentation tests.
  */
 @RunWith(RobolectricTestRunner::class)
-@Config(sdk = [34])
+@Config(sdk = [34], application = android.app.Application::class)
 class NavigationFlowTest {
 
     @get:Rule

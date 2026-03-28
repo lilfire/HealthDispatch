@@ -6,6 +6,11 @@ import com.google.firebase.auth.AuthResult
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.FirebaseUser
 import com.google.firebase.auth.GoogleAuthProvider
+import com.google.firebase.auth.FirebaseAuthInvalidCredentialsException
+import com.google.firebase.auth.FirebaseAuthInvalidUserException
+import com.google.firebase.auth.FirebaseAuthUserCollisionException
+import com.google.firebase.auth.FirebaseAuthWeakPasswordException
+import com.google.firebase.FirebaseNetworkException
 import io.mockk.Runs
 import io.mockk.coEvery
 import io.mockk.every
@@ -83,9 +88,9 @@ class FirebaseAuthRepositoryTest {
 
     @Test
     fun `signIn returns failure with mapped error for invalid credentials`() = runTest {
-        val task = mockFailureTask<AuthResult>(
-            com.google.firebase.auth.FirebaseAuthInvalidCredentialsException("ERROR_WRONG_PASSWORD", "The password is invalid")
-        )
+        val exception = mockk<FirebaseAuthInvalidCredentialsException>()
+        every { exception.message } returns "The password is invalid"
+        val task = mockFailureTask<AuthResult>(exception)
         every { firebaseAuth.signInWithEmailAndPassword("test@example.com", "wrong") } returns task
 
         val result = repository.signIn("test@example.com", "wrong")
@@ -96,9 +101,9 @@ class FirebaseAuthRepositoryTest {
 
     @Test
     fun `signIn returns failure with mapped error for user not found`() = runTest {
-        val task = mockFailureTask<AuthResult>(
-            com.google.firebase.auth.FirebaseAuthInvalidUserException("ERROR_USER_NOT_FOUND", "User not found")
-        )
+        val exception = mockk<FirebaseAuthInvalidUserException>()
+        every { exception.message } returns "User not found"
+        val task = mockFailureTask<AuthResult>(exception)
         every { firebaseAuth.signInWithEmailAndPassword("nobody@example.com", "pass") } returns task
 
         val result = repository.signIn("nobody@example.com", "pass")
@@ -109,9 +114,9 @@ class FirebaseAuthRepositoryTest {
 
     @Test
     fun `signIn returns failure for network error`() = runTest {
-        val task = mockFailureTask<AuthResult>(
-            com.google.firebase.FirebaseNetworkException("No internet")
-        )
+        val exception = mockk<FirebaseNetworkException>()
+        every { exception.message } returns "No internet"
+        val task = mockFailureTask<AuthResult>(exception)
         every { firebaseAuth.signInWithEmailAndPassword("test@example.com", "pass") } returns task
 
         val result = repository.signIn("test@example.com", "pass")
@@ -136,9 +141,9 @@ class FirebaseAuthRepositoryTest {
 
     @Test
     fun `signUp returns failure for existing user`() = runTest {
-        val task = mockFailureTask<AuthResult>(
-            com.google.firebase.auth.FirebaseAuthUserCollisionException("ERROR_EMAIL_ALREADY_IN_USE", "Email in use")
-        )
+        val exception = mockk<FirebaseAuthUserCollisionException>()
+        every { exception.message } returns "Email in use"
+        val task = mockFailureTask<AuthResult>(exception)
         every { firebaseAuth.createUserWithEmailAndPassword("exists@example.com", "pass123") } returns task
 
         val result = repository.signUp("exists@example.com", "pass123")
@@ -149,9 +154,9 @@ class FirebaseAuthRepositoryTest {
 
     @Test
     fun `signUp returns failure for weak password`() = runTest {
-        val task = mockFailureTask<AuthResult>(
-            com.google.firebase.auth.FirebaseAuthWeakPasswordException("ERROR_WEAK_PASSWORD", "Weak password", "Password should be at least 6 characters")
-        )
+        val exception = mockk<FirebaseAuthWeakPasswordException>()
+        every { exception.message } returns "Weak password"
+        val task = mockFailureTask<AuthResult>(exception)
         every { firebaseAuth.createUserWithEmailAndPassword("test@example.com", "12") } returns task
 
         val result = repository.signUp("test@example.com", "12")
@@ -179,9 +184,9 @@ class FirebaseAuthRepositoryTest {
 
     @Test
     fun `signInWithGoogle returns failure on invalid token`() = runTest {
-        val task = mockFailureTask<AuthResult>(
-            com.google.firebase.auth.FirebaseAuthInvalidCredentialsException("ERROR_INVALID_CREDENTIAL", "Invalid credential")
-        )
+        val exception = mockk<FirebaseAuthInvalidCredentialsException>()
+        every { exception.message } returns "Invalid credential"
+        val task = mockFailureTask<AuthResult>(exception)
         mockkStatic(GoogleAuthProvider::class)
         val credential = mockk<com.google.firebase.auth.AuthCredential>()
         every { GoogleAuthProvider.getCredential("bad-token", null) } returns credential
