@@ -130,6 +130,7 @@ dependencies {
     testImplementation(libs.turbine)
     testImplementation(libs.robolectric)
     testImplementation(libs.compose.ui.test)
+    debugImplementation(libs.compose.ui.test.manifest)
     androidTestImplementation(libs.test.ext)
     androidTestImplementation(libs.espresso.core)
     androidTestImplementation(composeBom)
