@@ -29,15 +29,7 @@ jobs:
           gradle-version: "8.11.1"
 
       - name: Run unit tests
-        run: gradle testDebugUnitTest --stacktrace
-
-      - name: Upload test reports
-        if: failure()
-        uses: actions/upload-artifact@v4
-        with:
-          name: test-reports
-          path: app/build/reports/tests/testDebugUnitTest/
-          retention-days: 5
+        run: gradle testDebugUnitTest
 
   build:
     name: Build Debug APK
