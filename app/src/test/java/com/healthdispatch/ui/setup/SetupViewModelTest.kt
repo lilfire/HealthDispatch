@@ -220,22 +220,129 @@ class SetupViewModelTest {
     }
 
     @Test
-    fun `handleGoogleSignIn calls repository with token`() = runTest {
-        coEvery { authRepository.signInWithGoogle(any()) } returns Result.success(Unit)
+    fun `handleGoogleSignIn calls repository with token and nonce`() = runTest {
+        coEvery { authRepository.signInWithGoogle(any(), any()) } returns Result.success(Unit)
         val vm = createViewModel()
-        vm.handleGoogleSignIn("google-id-token-123")
+        vm.handleGoogleSignIn("google-id-token-123", "raw-nonce")
         advanceUntilIdle()
-        coVerify { authRepository.signInWithGoogle("google-id-token-123") }
+        coVerify { authRepository.signInWithGoogle("google-id-token-123", "raw-nonce") }
     }
 
     @Test
     fun `handleGoogleSignIn failure shows error`() = runTest {
-        coEvery { authRepository.signInWithGoogle(any()) } returns
+        coEvery { authRepository.signInWithGoogle(any(), any()) } returns
             Result.failure(Exception("Google sign-in failed"))
         val vm = createViewModel()
-        vm.handleGoogleSignIn("bad-token")
+        vm.handleGoogleSignIn("bad-token", "nonce")
         advanceUntilIdle()
         assertEquals("Google sign-in failed", vm.uiState.value.errorMessage)
+    }
+
+    @Test
+    fun `handleGoogleSignIn sets loading state during sign-in`() = runTest {
+        coEvery { authRepository.signInWithGoogle(any(), any()) } coAnswers {
+            kotlinx.coroutines.delay(1000)
+            Result.success(Unit)
+        }
+        val vm = createViewModel()
+
+        vm.uiState.test {
+            awaitItem() // initial state
+
+            vm.handleGoogleSignIn("token", "nonce")
+            val loadingState = awaitItem()
+            assertTrue(loadingState.isLoading)
+            assertNull(loadingState.errorMessage)
+
+            advanceUntilIdle()
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test
+    fun `handleAppleSignIn calls repository with token`() = runTest {
+        coEvery { authRepository.signInWithApple(any()) } returns Result.success(Unit)
+        val vm = createViewModel()
+        vm.handleAppleSignIn("apple-id-token-123")
+        advanceUntilIdle()
+        coVerify { authRepository.signInWithApple("apple-id-token-123") }
+    }
+
+    @Test
+    fun `handleAppleSignIn failure shows error`() = runTest {
+        coEvery { authRepository.signInWithApple(any()) } returns
+            Result.failure(Exception("Apple sign-in failed"))
+        val vm = createViewModel()
+        vm.handleAppleSignIn("bad-token")
+        advanceUntilIdle()
+        assertEquals("Apple sign-in failed", vm.uiState.value.errorMessage)
+        assertFalse(vm.uiState.value.isLoading)
+    }
+
+    @Test
+    fun `handleAppleSignIn sets loading state`() = runTest {
+        coEvery { authRepository.signInWithApple(any()) } returns Result.success(Unit)
+        val vm = createViewModel()
+        vm.uiState.test {
+            awaitItem() // initial state
+            vm.handleAppleSignIn("apple-id-token")
+            val loadingState = awaitItem()
+            assertTrue(loadingState.isLoading)
+            assertNull(loadingState.errorMessage)
+            advanceUntilIdle()
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test
+    fun `handleGoogleSignInError sets error message from exception`() = runTest {
+        val vm = createViewModel()
+        vm.handleGoogleSignInError(Exception("Credential Manager error"))
+        assertEquals("Credential Manager error", vm.uiState.value.errorMessage)
+        assertFalse(vm.uiState.value.isLoading)
+    }
+
+    @Test
+    fun `handleFacebookSignIn calls repository with token`() = runTest {
+        coEvery { authRepository.signInWithFacebook(any()) } returns Result.success(Unit)
+        val vm = createViewModel()
+        vm.handleFacebookSignIn("fb-token-123")
+        advanceUntilIdle()
+        coVerify { authRepository.signInWithFacebook("fb-token-123") }
+    }
+
+    @Test
+    fun `handleFacebookSignIn failure shows error`() = runTest {
+        coEvery { authRepository.signInWithFacebook(any()) } returns
+            Result.failure(Exception("Facebook sign-in failed"))
+        val vm = createViewModel()
+        vm.handleFacebookSignIn("bad-token")
+        advanceUntilIdle()
+        assertEquals("Facebook sign-in failed", vm.uiState.value.errorMessage)
+        assertFalse(vm.uiState.value.isLoading)
+    }
+
+    @Test
+    fun `handleGoogleSignInError with null message shows generic error`() = runTest {
+        val vm = createViewModel()
+        vm.handleGoogleSignInError(Exception())
+        assertEquals("Google sign-in failed. Please try again", vm.uiState.value.errorMessage)
+        assertFalse(vm.uiState.value.isLoading)
+    }
+
+    @Test
+    fun `handleFacebookSignIn sets loading state`() = runTest {
+        coEvery { authRepository.signInWithFacebook(any()) } returns Result.success(Unit)
+        val vm = createViewModel()
+        vm.uiState.test {
+            awaitItem() // initial state
+            vm.handleFacebookSignIn("fb-token")
+            val loadingState = awaitItem()
+            assertTrue(loadingState.isLoading)
+            assertNull(loadingState.errorMessage)
+            advanceUntilIdle()
+            cancelAndIgnoreRemainingEvents()
+        }
     }
 
     @Test
@@ -258,6 +365,15 @@ class SetupViewModelTest {
             val event = awaitItem()
             assertTrue(event)
         }
+    }
+
+    @Test
+    fun `googleSignInAvailable reflects BuildConfig GOOGLE_CLIENT_ID`() = runTest {
+        val vm = createViewModel()
+        // BuildConfig.GOOGLE_CLIENT_ID defaults to empty string in test
+        // so googleSignInAvailable should reflect whether it's blank
+        val state = vm.uiState.value
+        assertEquals(vm.googleClientId.isNotBlank(), state.googleSignInAvailable)
     }
 
     @Test

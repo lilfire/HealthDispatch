@@ -2,6 +2,7 @@ package com.healthdispatch.ui.setup
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.healthdispatch.BuildConfig
 import com.healthdispatch.data.auth.AuthRepository
 import com.healthdispatch.data.auth.AuthState
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -20,7 +21,8 @@ data class SetupUiState(
     val confirmPassword: String = "",
     val isSignUpMode: Boolean = false,
     val isLoading: Boolean = false,
-    val errorMessage: String? = null
+    val errorMessage: String? = null,
+    val googleSignInAvailable: Boolean = false
 )
 
 @HiltViewModel
@@ -28,7 +30,11 @@ class SetupViewModel @Inject constructor(
     private val authRepository: AuthRepository
 ) : ViewModel() {
 
-    private val _uiState = MutableStateFlow(SetupUiState())
+    val googleClientId: String = BuildConfig.GOOGLE_CLIENT_ID
+
+    private val _uiState = MutableStateFlow(
+        SetupUiState(googleSignInAvailable = googleClientId.isNotBlank())
+    )
     val uiState: StateFlow<SetupUiState> = _uiState.asStateFlow()
 
     private val _authSuccessEvent = Channel<Boolean>(Channel.BUFFERED)
@@ -106,16 +112,63 @@ class SetupViewModel @Inject constructor(
         }
     }
 
-    fun handleGoogleSignIn(idToken: String) {
+    fun handleGoogleSignIn(idToken: String, nonce: String) {
         _uiState.update { it.copy(isLoading = true, errorMessage = null) }
 
         viewModelScope.launch {
-            val result = authRepository.signInWithGoogle(idToken)
+            val result = authRepository.signInWithGoogle(idToken, nonce)
             result.onFailure { error ->
                 _uiState.update {
                     it.copy(
                         isLoading = false,
                         errorMessage = error.message ?: "Google sign-in failed"
+                    )
+                }
+            }
+            result.onSuccess {
+                _uiState.update { it.copy(isLoading = false) }
+            }
+        }
+    }
+
+    fun handleGoogleSignInError(error: Exception) {
+        _uiState.update {
+            it.copy(
+                isLoading = false,
+                errorMessage = error.message ?: "Google sign-in failed. Please try again"
+            )
+        }
+    }
+
+    fun handleAppleSignIn(idToken: String) {
+        _uiState.update { it.copy(isLoading = true, errorMessage = null) }
+
+        viewModelScope.launch {
+            val result = authRepository.signInWithApple(idToken)
+            result.onFailure { error ->
+                _uiState.update {
+                    it.copy(
+                        isLoading = false,
+                        errorMessage = error.message ?: "Apple sign-in failed"
+                    )
+                }
+            }
+            result.onSuccess {
+                _uiState.update { it.copy(isLoading = false) }
+            }
+        }
+    }
+
+    fun handleFacebookSignIn(accessToken: String) {
+        _uiState.update { it.copy(isLoading = true, errorMessage = null) }
+
+        viewModelScope.launch {
+            val result = authRepository.signInWithFacebook(accessToken)
+            result.onFailure { error ->
+                _uiState.update {
+                    it.copy(
+                        isLoading = false,
+                        errorMessage = error.message ?: "Facebook sign-in failed"
                     )
                 }
             }

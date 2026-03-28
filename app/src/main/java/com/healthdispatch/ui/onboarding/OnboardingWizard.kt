@@ -29,7 +29,6 @@ fun OnboardingWizard(
     val state by viewModel.state.collectAsState()
 
     Column(modifier = Modifier.fillMaxSize()) {
-        // Progress indicator
         LinearProgressIndicator(
             progress = { (state.currentStep.ordinal + 1).toFloat() / viewModel.totalSteps },
             modifier = Modifier
@@ -48,7 +47,6 @@ fun OnboardingWizard(
                 .padding(bottom = 8.dp)
         )
 
-        // Step content with slide animation
         AnimatedContent(
             targetState = state.currentStep,
             transitionSpec = {
@@ -64,26 +62,6 @@ fun OnboardingWizard(
             when (step) {
                 OnboardingStep.WELCOME -> WelcomeStep(
                     onContinue = { viewModel.goToNext() }
-                )
-
-                OnboardingStep.PATH_CHOICE -> PathChoiceStep(
-                    onChoice = { choice ->
-                        viewModel.setPathChoice(choice)
-                        viewModel.goToNext()
-                    }
-                )
-
-                OnboardingStep.CLOUD_CONFIG -> CloudConfigStep(
-                    pathChoice = state.pathChoice,
-                    supabaseUrl = state.supabaseUrl,
-                    supabaseKey = state.supabaseKey,
-                    onUrlChange = { viewModel.setSupabaseUrl(it) },
-                    onKeyChange = { viewModel.setSupabaseKey(it) },
-                    onBack = { viewModel.goBack() },
-                    onNext = {
-                        viewModel.saveCloudConfig()
-                        viewModel.goToNext()
-                    }
                 )
 
                 OnboardingStep.PERMISSIONS -> PermissionsStep(
