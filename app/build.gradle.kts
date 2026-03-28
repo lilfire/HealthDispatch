@@ -128,6 +128,8 @@ dependencies {
     testImplementation(libs.mockk)
     testImplementation(libs.coroutines.test)
     testImplementation(libs.turbine)
+    testImplementation(libs.robolectric)
+    testImplementation(libs.compose.ui.test)
     androidTestImplementation(libs.test.ext)
     androidTestImplementation(libs.espresso.core)
     androidTestImplementation(composeBom)

@@ -58,7 +58,7 @@ class SyncWorkerTest {
 
         syncLogic.syncPendingRecords()
 
-        coVerify { mockDao.updateStatus(1L, SyncStatus.SYNCED, any(), null) }
+        coVerify { mockDao.updateStatus(1L, SyncStatus.SYNCED) }
     }
 
     @Test
@@ -69,7 +69,7 @@ class SyncWorkerTest {
 
         syncLogic.syncPendingRecords()
 
-        coVerify { mockDao.updateStatus(1L, SyncStatus.FAILED, any(), "fail") }
+        coVerify { mockDao.updateStatus(1L, SyncStatus.FAILED, error = "fail") }
     }
 
     @Test
@@ -80,7 +80,7 @@ class SyncWorkerTest {
 
         syncLogic.syncPendingRecords()
 
-        coVerify { mockDao.updateStatus(1L, SyncStatus.PENDING, any(), "temp") }
+        coVerify { mockDao.updateStatus(1L, SyncStatus.PENDING, error = "temp") }
     }
 
     @Test
