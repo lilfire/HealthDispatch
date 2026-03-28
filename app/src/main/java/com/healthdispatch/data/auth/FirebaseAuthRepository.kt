@@ -109,14 +109,14 @@ class FirebaseAuthRepository @Inject constructor(
 
     private fun mapFirebaseError(e: Exception): String {
         return when (e) {
+            is FirebaseAuthWeakPasswordException ->
+                "Password must be at least 6 characters long"
             is FirebaseAuthInvalidCredentialsException ->
                 "The email or password you entered is incorrect"
             is FirebaseAuthInvalidUserException ->
                 "The email or password you entered is incorrect"
             is FirebaseAuthUserCollisionException ->
                 "An account with this email already exists. Try signing in instead"
-            is FirebaseAuthWeakPasswordException ->
-                "Password must be at least 6 characters long"
             is FirebaseNetworkException ->
                 "No internet connection. Please check your network and try again"
             else -> e.message ?: "Authentication failed"
