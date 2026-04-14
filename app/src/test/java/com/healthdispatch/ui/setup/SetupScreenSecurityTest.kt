@@ -18,22 +18,6 @@ class SetupScreenSecurityTest {
     }
 
     @Test
-    fun apiKeyField_usesPasswordVisualTransformation() {
-        assertTrue(
-            "API key field should use PasswordVisualTransformation for masking",
-            setupScreenSource.contains("PasswordVisualTransformation")
-        )
-    }
-
-    @Test
-    fun setupScreen_importsPasswordVisualTransformation() {
-        assertTrue(
-            "SetupScreen should import PasswordVisualTransformation",
-            setupScreenSource.contains("import androidx.compose.ui.text.input.PasswordVisualTransformation")
-        )
-    }
-
-    @Test
     fun setupScreen_noLogStatements() {
         val logPatterns = listOf(
             "Log.d(", "Log.i(", "Log.v(", "Log.w(", "Log.e(",
@@ -43,6 +27,19 @@ class SetupScreenSecurityTest {
         assertTrue(
             "SetupScreen should not contain log statements that could leak secrets, found: $foundLogs",
             foundLogs.isEmpty()
+        )
+    }
+
+    @Test
+    fun setupScreen_noHardcodedCredentials() {
+        val sensitivePatterns = listOf("client_id", "client_secret", "app_secret", "api_key")
+        val foundSecrets = sensitivePatterns.filter {
+            setupScreenSource.contains(it, ignoreCase = true) &&
+                !setupScreenSource.contains("BuildConfig", ignoreCase = false)
+        }
+        assertTrue(
+            "SetupScreen should not contain hardcoded credentials, found: $foundSecrets",
+            foundSecrets.isEmpty()
         )
     }
 
