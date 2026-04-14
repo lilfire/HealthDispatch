@@ -115,8 +115,11 @@ dependencies {
 
     // Credential Manager (Google Sign-In)
     implementation(libs.credentials)
-    implementation(libs.credentials.play.services)
+    implementation(libs.credentials.play.services.auth)
     implementation(libs.googleid)
+
+    // Facebook Login SDK
+    implementation("com.facebook.android:facebook-login:latest.release")
 
     // Coroutines
     implementation(libs.coroutines.core)

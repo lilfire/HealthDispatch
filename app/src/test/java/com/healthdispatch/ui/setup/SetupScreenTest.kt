@@ -1,10 +1,6 @@
 package com.healthdispatch.ui.setup
 
 import androidx.compose.ui.test.assertIsDisplayed
-import androidx.compose.ui.test.assertIsEnabled
-import androidx.compose.ui.test.assertIsNotEnabled
-import androidx.compose.ui.test.hasSetTextAction
-import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
@@ -26,67 +22,54 @@ class SetupScreenTest {
     @get:Rule
     val composeTestRule = createComposeRule()
 
-    private fun setContent(uiState: SetupUiState = SetupUiState(), callbacks: TestCallbacks = TestCallbacks()) {
+    private fun setContent(
+        uiState: SetupUiState = SetupUiState(),
+        onGoogleSignIn: () -> Unit = {},
+        onFacebookSignIn: () -> Unit = {},
+        onClearError: () -> Unit = {}
+    ) {
         composeTestRule.setContent {
             SetupScreenContent(
                 uiState = uiState,
-                onEmailChange = callbacks.onEmailChange,
-                onPasswordChange = callbacks.onPasswordChange,
-                onConfirmPasswordChange = callbacks.onConfirmPasswordChange,
-                onToggleMode = callbacks.onToggleMode,
-                onSubmit = callbacks.onSubmit,
-                onClearError = callbacks.onClearError
+                onGoogleSignIn = onGoogleSignIn,
+                onFacebookSignIn = onFacebookSignIn,
+                onClearError = onClearError
             )
         }
-    }
-
-    @Test
-    fun setupScreen_displaysBothInputFields() {
-        setContent()
-        composeTestRule.onNode(hasText("Email") and hasSetTextAction())
-            .assertIsDisplayed()
-        composeTestRule.onNode(hasText("Password") and hasSetTextAction())
-            .assertIsDisplayed()
     }
 
     @Test
     fun setupScreen_displaysTitle() {
         setContent()
         composeTestRule.onNodeWithText("HealthDispatch").assertIsDisplayed()
-        composeTestRule.onNodeWithText("Sign in to your account").assertIsDisplayed()
     }
 
     @Test
-    fun setupScreen_signInButtonEnabledByDefault() {
+    fun setupScreen_displaysGoogleSignInButton() {
         setContent()
-        composeTestRule.onNodeWithText("Sign In").assertIsEnabled()
+        composeTestRule.onNodeWithText("Sign in with Google").assertIsDisplayed()
     }
 
     @Test
-    fun setupScreen_signInButtonDisabledWhenLoading() {
-        setContent(uiState = SetupUiState(isLoading = true))
-        composeTestRule.onNodeWithText("Sign In").assertDoesNotExist()
+    fun setupScreen_displaysFacebookSignInButton() {
+        setContent()
+        composeTestRule.onNodeWithText("Sign in with Facebook").assertIsDisplayed()
     }
 
     @Test
-    fun setupScreen_showsSignUpSubtitleInSignUpMode() {
-        setContent(uiState = SetupUiState(isSignUpMode = true))
-        composeTestRule.onNodeWithText("Create your account").assertIsDisplayed()
+    fun setupScreen_googleSignInTriggersCallback() {
+        var invoked = false
+        setContent(onGoogleSignIn = { invoked = true })
+        composeTestRule.onNodeWithText("Sign in with Google").performClick()
+        assertTrue("onGoogleSignIn callback should have been invoked", invoked)
     }
 
     @Test
-    fun setupScreen_showsCreateAccountButtonInSignUpMode() {
-        setContent(uiState = SetupUiState(isSignUpMode = true))
-        composeTestRule.onNodeWithText("Create Account").assertIsDisplayed()
-    }
-
-    @Test
-    fun setupScreen_submitButtonTriggersCallback() {
-        var submitInvoked = false
-        val callbacks = TestCallbacks(onSubmit = { submitInvoked = true })
-        setContent(callbacks = callbacks)
-        composeTestRule.onNodeWithText("Sign In").performClick()
-        assertTrue("onSubmit callback should have been invoked", submitInvoked)
+    fun setupScreen_facebookSignInTriggersCallback() {
+        var invoked = false
+        setContent(onFacebookSignIn = { invoked = true })
+        composeTestRule.onNodeWithText("Sign in with Facebook").performClick()
+        assertTrue("onFacebookSignIn callback should have been invoked", invoked)
     }
 
     @Test
@@ -94,13 +77,4 @@ class SetupScreenTest {
         setContent(uiState = SetupUiState(errorMessage = "Invalid credentials"))
         composeTestRule.onNodeWithText("Invalid credentials").assertIsDisplayed()
     }
-
-    private data class TestCallbacks(
-        val onEmailChange: (String) -> Unit = {},
-        val onPasswordChange: (String) -> Unit = {},
-        val onConfirmPasswordChange: (String) -> Unit = {},
-        val onToggleMode: () -> Unit = {},
-        val onSubmit: () -> Unit = {},
-        val onClearError: () -> Unit = {}
-    )
 }
