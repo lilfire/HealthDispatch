@@ -1,0 +1,31 @@
+{
+  "_README": "This is a placeholder google-services.json. Replace with the real file from your Firebase Console: Project Settings > General > Your Apps > Download google-services.json",
+  "project_info": {
+    "project_number": "000000000000",
+    "firebase_url": "https://your-project.firebaseio.com",
+    "project_id": "your-project-id",
+    "storage_bucket": "your-project-id.appspot.com"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:000000000000:android:0000000000000000000000",
+        "android_client_info": {
+          "package_name": "com.healthdispatch"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "YOUR_API_KEY_HERE"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

@@ -5,6 +5,7 @@ plugins {
     alias(libs.plugins.kotlin.serialization)
     alias(libs.plugins.hilt)
     alias(libs.plugins.ksp)
+    alias(libs.plugins.google.services)
 }
 
 val localProperties = java.util.Properties().apply {
@@ -14,8 +15,9 @@ val localProperties = java.util.Properties().apply {
     }
 }
 
-val supabaseUrl: String = localProperties.getProperty("SUPABASE_URL", "https://your-project.supabase.co")
-val supabaseAnonKey: String = localProperties.getProperty("SUPABASE_ANON_KEY", "your-anon-key")
+val supabaseUrl: String = localProperties.getProperty("SUPABASE_URL", "https://placeholder.supabase.co")
+val supabaseAnonKey: String = localProperties.getProperty("SUPABASE_ANON_KEY", "placeholder-key")
+val googleWebClientId: String = localProperties.getProperty("GOOGLE_WEB_CLIENT_ID", "")
 
 android {
     namespace = "com.healthdispatch"
@@ -32,6 +34,7 @@ android {
 
         buildConfigField("String", "SUPABASE_URL", "\"$supabaseUrl\"")
         buildConfigField("String", "SUPABASE_ANON_KEY", "\"$supabaseAnonKey\"")
+        buildConfigField("String", "GOOGLE_WEB_CLIENT_ID", "\"$googleWebClientId\"")
     }
 
     signingConfigs {
@@ -115,7 +118,7 @@ dependencies {
     // WorkManager
     implementation(libs.work.runtime)
 
-    // Supabase
+    // Supabase (data sync)
     implementation(platform(libs.supabase.bom))
     implementation(libs.supabase.gotrue)
     implementation(libs.supabase.postgrest)
@@ -126,33 +129,30 @@ dependencies {
     implementation(libs.ktor.client.content.negotiation)
     implementation(libs.ktor.serialization.json)
 
+    // Firebase Auth
+    implementation(platform(libs.firebase.bom))
+    implementation(libs.firebase.auth)
+
+    // Android Credential Manager (Google Sign-In)
+    implementation(libs.credentials)
+    implementation(libs.credentials.play.services.auth)
+    implementation(libs.googleid)
+
+    // Facebook Login SDK
+    implementation("com.facebook.android:facebook-login:latest.release")
+
     // Coroutines
     implementation(libs.coroutines.core)
     implementation(libs.coroutines.android)
+    implementation(libs.coroutines.play.services)
 
     // Testing
     testImplementation(libs.junit)
     testImplementation(libs.mockk)
     testImplementation(libs.coroutines.test)
     testImplementation(libs.turbine)
-    testImplementation(libs.ktor.client.mock)
     androidTestImplementation(libs.test.ext)
     androidTestImplementation(libs.espresso.core)
     androidTestImplementation(composeBom)
     androidTestImplementation(libs.compose.ui.test)
-}
-
-tasks.register("validateSupabaseConfig") {
-    doLast {
-        require(supabaseUrl != "https://your-project.supabase.co") {
-            "SUPABASE_URL is not configured. Set SUPABASE_URL in local.properties (e.g. SUPABASE_URL=https://abc123.supabase.co)"
-        }
-        require(supabaseAnonKey != "your-anon-key") {
-            "SUPABASE_ANON_KEY is not configured. Set SUPABASE_ANON_KEY in local.properties"
-        }
-    }
-}
-
-tasks.matching { it.name.startsWith("assemble") || it.name.startsWith("install") }.configureEach {
-    dependsOn("validateSupabaseConfig")
 }
