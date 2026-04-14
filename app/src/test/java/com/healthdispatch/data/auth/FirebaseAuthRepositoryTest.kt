@@ -123,7 +123,7 @@ class FirebaseAuthRepositoryTest {
     }
 
     @Test
-    fun `signOut returns success even on exception`() = testScope.runTest {
+    fun `signOut returns failure on exception`() = testScope.runTest {
         every { firebaseAuth.signOut() } throws RuntimeException("sign out error")
         val repo = createRepo()
         val result = repo.signOut()

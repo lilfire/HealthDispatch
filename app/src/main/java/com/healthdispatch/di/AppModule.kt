@@ -6,26 +6,17 @@ import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.preferencesDataStore
 import androidx.room.Room
 import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.firestore.FirebaseFirestore
 import com.healthdispatch.data.auth.AuthRepository
 import com.healthdispatch.data.auth.FirebaseAuthRepository
-import com.healthdispatch.data.cloud.AuthSessionProvider
-import com.healthdispatch.data.cloud.PostgrestClientWrapper
-import com.healthdispatch.data.cloud.SupabaseAuthSessionProvider
-import com.healthdispatch.data.cloud.SupabasePostgrestClientWrapper
 import com.healthdispatch.data.local.PendingSyncDao
 import com.healthdispatch.data.local.SyncDatabase
 import com.healthdispatch.data.local.SyncTokenDao
-import com.healthdispatch.BuildConfig
-import dagger.Binds
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
 import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.components.SingletonComponent
-import io.github.jan.supabase.SupabaseClient
-import io.github.jan.supabase.auth.Auth
-import io.github.jan.supabase.createSupabaseClient
-import io.github.jan.supabase.postgrest.Postgrest
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -55,14 +46,16 @@ object AppModule {
 
     @Provides
     @Singleton
-    fun provideSupabaseClient(): SupabaseClient {
-        return createSupabaseClient(
-            supabaseUrl = BuildConfig.SUPABASE_URL,
-            supabaseKey = BuildConfig.SUPABASE_ANON_KEY
-        ) {
-            install(Auth)
-            install(Postgrest)
-        }
+    fun provideFirebaseAuth(): FirebaseAuth = FirebaseAuth.getInstance()
+
+    @Provides
+    @Singleton
+    fun provideFirebaseFirestore(): FirebaseFirestore {
+        val firestore = FirebaseFirestore.getInstance()
+        firestore.firestoreSettings = com.google.firebase.firestore.FirebaseFirestoreSettings.Builder()
+            .setPersistenceEnabled(true)
+            .build()
+        return firestore
     }
 
     @Provides
@@ -70,10 +63,6 @@ object AppModule {
     fun provideDataStore(@ApplicationContext context: Context): DataStore<Preferences> {
         return context.dataStore
     }
-
-    @Provides
-    @Singleton
-    fun provideFirebaseAuth(): FirebaseAuth = FirebaseAuth.getInstance()
 
     @Provides
     @Singleton
@@ -88,17 +77,4 @@ object AppModule {
     ): AuthRepository {
         return FirebaseAuthRepository(firebaseAuth, scope)
     }
-}
-
-@Module
-@InstallIn(SingletonComponent::class)
-abstract class AppBindingsModule {
-
-    @Binds
-    @Singleton
-    abstract fun bindAuthSessionProvider(impl: SupabaseAuthSessionProvider): AuthSessionProvider
-
-    @Binds
-    @Singleton
-    abstract fun bindPostgrestClientWrapper(impl: SupabasePostgrestClientWrapper): PostgrestClientWrapper
 }

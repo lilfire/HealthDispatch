@@ -8,17 +8,6 @@ plugins {
     alias(libs.plugins.google.services)
 }
 
-val localProperties = java.util.Properties().apply {
-    val localPropsFile = rootProject.file("local.properties")
-    if (localPropsFile.exists()) {
-        localPropsFile.inputStream().use { load(it) }
-    }
-}
-
-val supabaseUrl: String = localProperties.getProperty("SUPABASE_URL", "https://placeholder.supabase.co")
-val supabaseAnonKey: String = localProperties.getProperty("SUPABASE_ANON_KEY", "placeholder-key")
-val googleWebClientId: String = localProperties.getProperty("GOOGLE_WEB_CLIENT_ID", "")
-
 android {
     namespace = "com.healthdispatch"
     compileSdk = 35
@@ -32,9 +21,7 @@ android {
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
-        buildConfigField("String", "SUPABASE_URL", "\"$supabaseUrl\"")
-        buildConfigField("String", "SUPABASE_ANON_KEY", "\"$supabaseAnonKey\"")
-        buildConfigField("String", "GOOGLE_WEB_CLIENT_ID", "\"$googleWebClientId\"")
+        buildConfigField("String", "GOOGLE_CLIENT_ID", "\"${project.findProperty("GOOGLE_CLIENT_ID") ?: ""}\"")
     }
 
     signingConfigs {
@@ -118,22 +105,15 @@ dependencies {
     // WorkManager
     implementation(libs.work.runtime)
 
-    // Supabase (data sync)
-    implementation(platform(libs.supabase.bom))
-    implementation(libs.supabase.gotrue)
-    implementation(libs.supabase.postgrest)
+    // Serialization
+    implementation(libs.serialization.json)
 
-    // Ktor (required by Supabase SDK)
-    implementation(libs.ktor.client.core)
-    implementation(libs.ktor.client.okhttp)
-    implementation(libs.ktor.client.content.negotiation)
-    implementation(libs.ktor.serialization.json)
-
-    // Firebase Auth
+    // Firebase
     implementation(platform(libs.firebase.bom))
     implementation(libs.firebase.auth)
+    implementation(libs.firebase.firestore)
 
-    // Android Credential Manager (Google Sign-In)
+    // Credential Manager (Google Sign-In)
     implementation(libs.credentials)
     implementation(libs.credentials.play.services.auth)
     implementation(libs.googleid)
@@ -151,6 +131,11 @@ dependencies {
     testImplementation(libs.mockk)
     testImplementation(libs.coroutines.test)
     testImplementation(libs.turbine)
+    testImplementation(libs.robolectric)
+    testImplementation(libs.test.core)
+    testImplementation(composeBom)
+    testImplementation(libs.compose.ui.test)
+    debugImplementation(libs.compose.ui.test.manifest)
     androidTestImplementation(libs.test.ext)
     androidTestImplementation(libs.espresso.core)
     androidTestImplementation(composeBom)

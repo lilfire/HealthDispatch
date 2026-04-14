@@ -1,13 +1,13 @@
 package com.healthdispatch.sync
 
-import com.healthdispatch.data.cloud.HealthDispatchSupabaseClient
+import com.healthdispatch.data.cloud.FirestoreHealthRepository
 import com.healthdispatch.data.local.PendingSyncDao
 import com.healthdispatch.data.local.SyncStatus
 import javax.inject.Inject
 
 class SyncLogic @Inject constructor(
     private val pendingSyncDao: PendingSyncDao,
-    private val supabaseClient: HealthDispatchSupabaseClient
+    private val firestoreRepo: FirestoreHealthRepository
 ) {
     suspend fun syncPendingRecords(): Boolean {
         val pending = pendingSyncDao.getPendingRecords(limit = 50)
@@ -16,14 +16,14 @@ class SyncLogic @Inject constructor(
         val grouped = pending.groupBy { it.recordType }
 
         for ((recordType, records) in grouped) {
-            val tableName = recordTypeToTable(recordType)
+            val collection = recordTypeToCollection(recordType)
             val payloads = records.map { it.jsonPayload }
 
             records.forEach {
                 pendingSyncDao.updateStatus(it.id, SyncStatus.IN_PROGRESS)
             }
 
-            val result = supabaseClient.pushRecords(tableName, payloads)
+            val result = firestoreRepo.pushRecords(collection, payloads)
             result.fold(
                 onSuccess = {
                     records.forEach {
@@ -48,12 +48,12 @@ class SyncLogic @Inject constructor(
     companion object {
         const val MAX_RETRIES = 5
 
-        fun recordTypeToTable(type: String): String = when (type) {
-            "Steps" -> "steps_records"
-            "HeartRate" -> "heart_rate_records"
-            "Sleep" -> "sleep_records"
-            "Exercise" -> "exercise_records"
-            "Weight" -> "body_records"
+        fun recordTypeToCollection(type: String): String = when (type) {
+            "Steps" -> "steps"
+            "HeartRate" -> "heart_rate"
+            "Sleep" -> "sleep"
+            "Exercise" -> "exercise"
+            "Weight" -> "body"
             else -> "health_records"
         }
     }

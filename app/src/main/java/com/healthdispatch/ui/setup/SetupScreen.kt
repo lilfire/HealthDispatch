@@ -101,7 +101,7 @@ fun SetupScreen(
                 try {
                     val googleIdOption = GetGoogleIdOption.Builder()
                         .setFilterByAuthorizedAccounts(false)
-                        .setServerClientId(BuildConfig.GOOGLE_WEB_CLIENT_ID)
+                        .setServerClientId(BuildConfig.GOOGLE_CLIENT_ID)
                         .build()
                     val request = GetCredentialRequest.Builder()
                         .addCredentialOption(googleIdOption)

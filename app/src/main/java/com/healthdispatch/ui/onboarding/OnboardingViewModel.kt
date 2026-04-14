@@ -4,7 +4,6 @@ import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
-import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -15,15 +14,10 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
-enum class OnboardingStep { WELCOME, PATH_CHOICE, CLOUD_CONFIG, PERMISSIONS, DONE }
-
-enum class PathChoice { CONNECT_EXISTING, SETUP_NEW, SKIP }
+enum class OnboardingStep { WELCOME, PERMISSIONS, DONE }
 
 data class OnboardingState(
     val currentStep: OnboardingStep = OnboardingStep.WELCOME,
-    val pathChoice: PathChoice? = null,
-    val supabaseUrl: String = "",
-    val supabaseKey: String = "",
     val permissionsGranted: Boolean = false,
     val isComplete: Boolean = false
 )
@@ -44,12 +38,7 @@ class OnboardingViewModel @Inject constructor(
     fun goToNext() {
         _state.update { current ->
             val nextStep = when (current.currentStep) {
-                OnboardingStep.WELCOME -> OnboardingStep.PATH_CHOICE
-                OnboardingStep.PATH_CHOICE -> {
-                    if (current.pathChoice == PathChoice.SKIP) OnboardingStep.PERMISSIONS
-                    else OnboardingStep.CLOUD_CONFIG
-                }
-                OnboardingStep.CLOUD_CONFIG -> OnboardingStep.PERMISSIONS
+                OnboardingStep.WELCOME -> OnboardingStep.PERMISSIONS
                 OnboardingStep.PERMISSIONS -> OnboardingStep.DONE
                 OnboardingStep.DONE -> return
             }
@@ -61,41 +50,15 @@ class OnboardingViewModel @Inject constructor(
         _state.update { current ->
             val prevStep = when (current.currentStep) {
                 OnboardingStep.WELCOME -> return
-                OnboardingStep.PATH_CHOICE -> OnboardingStep.WELCOME
-                OnboardingStep.CLOUD_CONFIG -> OnboardingStep.PATH_CHOICE
-                OnboardingStep.PERMISSIONS -> {
-                    if (current.pathChoice == PathChoice.SKIP) OnboardingStep.PATH_CHOICE
-                    else OnboardingStep.CLOUD_CONFIG
-                }
+                OnboardingStep.PERMISSIONS -> OnboardingStep.WELCOME
                 OnboardingStep.DONE -> OnboardingStep.PERMISSIONS
             }
             current.copy(currentStep = prevStep)
         }
     }
 
-    fun setPathChoice(choice: PathChoice) {
-        _state.update { it.copy(pathChoice = choice) }
-    }
-
-    fun setSupabaseUrl(url: String) {
-        _state.update { it.copy(supabaseUrl = url) }
-    }
-
-    fun setSupabaseKey(key: String) {
-        _state.update { it.copy(supabaseKey = key) }
-    }
-
     fun setPermissionsGranted(granted: Boolean) {
         _state.update { it.copy(permissionsGranted = granted) }
-    }
-
-    fun saveCloudConfig() {
-        viewModelScope.launch {
-            dataStore.edit { prefs ->
-                prefs[SUPABASE_URL_KEY] = _state.value.supabaseUrl
-                prefs[SUPABASE_API_KEY] = _state.value.supabaseKey
-            }
-        }
     }
 
     fun completeOnboarding() {
@@ -108,8 +71,6 @@ class OnboardingViewModel @Inject constructor(
     }
 
     companion object {
-        val SUPABASE_URL_KEY = stringPreferencesKey("supabase_url")
-        val SUPABASE_API_KEY = stringPreferencesKey("supabase_api_key")
         val ONBOARDING_COMPLETE_KEY = booleanPreferencesKey("onboarding_complete")
     }
 }

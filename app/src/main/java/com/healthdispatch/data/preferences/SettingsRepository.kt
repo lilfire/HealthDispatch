@@ -2,8 +2,8 @@ package com.healthdispatch.data.preferences
 
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
+import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
-import androidx.datastore.preferences.core.stringPreferencesKey
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import javax.inject.Inject
@@ -13,23 +13,17 @@ import javax.inject.Singleton
 class SettingsRepository @Inject constructor(
     private val dataStore: DataStore<Preferences>
 ) {
-    val supabaseUrl: Flow<String> = dataStore.data.map { prefs ->
-        prefs[KEY_SUPABASE_URL] ?: ""
+    val onboardingComplete: Flow<Boolean> = dataStore.data.map { prefs ->
+        prefs[KEY_ONBOARDING_COMPLETE] ?: false
     }
 
-    val supabaseApiKey: Flow<String> = dataStore.data.map { prefs ->
-        prefs[KEY_SUPABASE_API_KEY] ?: ""
-    }
-
-    suspend fun saveSupabaseConfig(url: String, apiKey: String) {
+    suspend fun setOnboardingComplete(complete: Boolean) {
         dataStore.edit { prefs ->
-            prefs[KEY_SUPABASE_URL] = url
-            prefs[KEY_SUPABASE_API_KEY] = apiKey
+            prefs[KEY_ONBOARDING_COMPLETE] = complete
         }
     }
 
     companion object {
-        val KEY_SUPABASE_URL = stringPreferencesKey("supabase_url")
-        val KEY_SUPABASE_API_KEY = stringPreferencesKey("supabase_api_key")
+        val KEY_ONBOARDING_COMPLETE = booleanPreferencesKey("onboarding_complete")
     }
 }
